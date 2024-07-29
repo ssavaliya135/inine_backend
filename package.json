@@ -1,0 +1,41 @@
+{
+  "name": "ai_tattoo_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/app.js",
+    "lint": "eslint . --ext .ts",
+    "lint-and-fix": "eslint . --ext .ts --fix",
+    "postinstall": "tsc",
+    "heroku": "node dist/app.js",
+    "pm2-staging": "pm2 start npm --name staging-dc -- run staging-server",
+    "build": "tsc",
+    "watch": "ts-node-dev --respawn --transpile-only src/app.ts  config:env/dev.env",
+    "dev-build": "node dist/app.js  config:env/dev.env",
+    "dev": "ts-node src/app.ts  config:env/dev.env",
+    "prod": "ts-node src/app.ts  config:env/dc-production.env",
+    "prod-js": "tsc & node dist/app.js  config:env/dc-production.env",
+    "prod-ec2": "node dist/app.js  config:/var/growlytics/appi.env",
+    "staging": "ts-node src/app.ts config:env/dc-staging.env"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "joi": "^17.12.2",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "mongoose": "^8.2.1",
+    "multer": "^1.4.5-lts.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/multer": "^1.4.11"
+  }
+}
