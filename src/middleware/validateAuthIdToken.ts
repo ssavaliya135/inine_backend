@@ -34,11 +34,8 @@ export const validateAuthIdToken = async (
     res.status(403).json({ message: "Unauthorized request." });
     return;
   }
-  if (user.isBlocked) {
-    console.log("blocked user try to log in", user._id);
-    return;
-  }
-  const userRawData = user.toJSON();
+
+  const userRawData = user;
   delete userRawData.password;
 
   //@ts-ignore  ---> to check this

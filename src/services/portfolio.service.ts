@@ -26,11 +26,11 @@ export const getPortfolioByUserIdAndMonth = async (
 };
 
 export const savePortfolio = async (portfolio: IPortfolio) => {
-  const savedPortfolio = await new PortfolioModel(portfolio.toJSON()).save();
+  const savedPortfolio = await new PortfolioModel(portfolio).save();
   return savedPortfolio;
 };
 
 export const updatePortfolio = async (portfolio: IPortfolio) => {
-  await PortfolioModel.findByIdAndUpdate(portfolio._id, portfolio.toJSON());
+  await PortfolioModel.findByIdAndUpdate(portfolio._id, portfolio);
   return portfolio;
 };

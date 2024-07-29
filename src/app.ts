@@ -4,7 +4,6 @@ import { connectDb } from "./dbConnections";
 import adminRoute from "./routes/admin.route";
 import authRoute from "./routes/auth.route";
 import userRoute from "./routes/user.route";
-import { getRenamingSubscribedUser } from "./services/user.service";
 
 const dotenv = require("dotenv");
 dotenv.config();

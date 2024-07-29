@@ -26,11 +26,11 @@ export const getAmountByUserIdAndMonth = async (
 };
 
 export const saveAmount = async (amount: IAmount) => {
-  const savedAmount = await new AmountModel(amount.toJSON()).save();
+  const savedAmount = await new AmountModel(amount).save();
   return savedAmount;
 };
 
 export const updateAmount = async (amount: IAmount) => {
-  await AmountModel.findByIdAndUpdate(amount._id, amount.toJSON());
+  await AmountModel.findByIdAndUpdate(amount._id, amount);
   return amount;
 };

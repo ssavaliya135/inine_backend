@@ -37,11 +37,11 @@ export const getUserById = async (_id: string) => {
 };
 
 export const saveUser = async (user: IUser) => {
-  const savedUser = await new UserModel(user.toJSON()).save();
+  const savedUser = await new UserModel(user).save();
   return savedUser;
 };
 
 export const updateUser = async (user: IUser) => {
-  await UserModel.findByIdAndUpdate(user._id, user.toJSON());
+  await UserModel.findByIdAndUpdate(user._id, user);
   return user;
 };
