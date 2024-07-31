@@ -1,7 +1,7 @@
 import moment from "moment";
 
-export const calculateMonth = () => {
-  const currentDate = new Date();
+export const calculateMonth = (date) => {
+  const currentDate = new Date(date);
   const formatter = new Intl.DateTimeFormat("en", { month: "short" });
 
   const currentMonth = formatter.format(currentDate);
@@ -12,14 +12,35 @@ export const calculateMonth = () => {
   const nextMonthYear = nextMonthDate.getFullYear();
   console.log(`Current Month: ${currentMonth}`);
   console.log(`Next Month: ${nextMonth}`);
+  const lastThursday = getLastThursday(date);
+  let month;
+  if (moment(date).isSameOrBefore(lastThursday)) {
+    if (currentYear == nextMonthYear) {
+      month = `${currentMonth}-${nextMonth} (${currentYear})`;
+    } else {
+      month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
+        .toString()
+        .slice(2)})`;
+    }
+  } else {
+    const nextMonthPlusOneDate = new Date(nextMonthDate);
+    nextMonthPlusOneDate.setMonth(nextMonthDate.getMonth() + 1);
+    const nextMonthPlusOne = formatter.format(nextMonthPlusOneDate);
+    const nextMonthPlusOneYear = nextMonthPlusOneDate.getFullYear();
+
+    if (nextMonthYear === nextMonthPlusOneYear) {
+      month = `${nextMonth}-${nextMonthPlusOne} (${nextMonthYear})`;
+    } else {
+      month = `${nextMonth}-${nextMonthPlusOne} (${nextMonthYear}-${nextMonthPlusOneYear
+        .toString()
+        .slice(2)})`;
+    }
+  }
   // return `${currentMonth}-${nextMonth}`;
   return {
     currentDate,
     nextMonthDate,
-    currentMonth,
-    nextMonth,
-    currentYear,
-    nextMonthYear,
+    month,
   };
 };
 
@@ -33,15 +54,8 @@ function getLastFriday(date) {
   return lastDayOfMonth;
 }
 
-export const calculateTotalDays = () => {
-  let {
-    currentDate,
-    nextMonthDate,
-    currentMonth,
-    nextMonth,
-    currentYear,
-    nextMonthYear,
-  } = calculateMonth();
+export const calculateTotalDays = (date) => {
+  let { currentDate, nextMonthDate, month } = calculateMonth(date);
 
   // Get the first Friday of the current month
   const lastFridayCurrentMonth = getLastFriday(currentDate);
@@ -52,14 +66,7 @@ export const calculateTotalDays = () => {
   // Calculate the total days between these dates
   const totalDays =
     lastThursdayNextMonth.diff(lastFridayCurrentMonth, "days") + 1;
-  let month;
-  if (currentYear == nextMonthYear) {
-    month = `${currentMonth}-${nextMonth} (${currentYear})`;
-  } else {
-    month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
-      .toString()
-      .slice(2)})`;
-  }
+
   return { totalDays, month };
 };
 

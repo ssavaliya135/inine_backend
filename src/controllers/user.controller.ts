@@ -1,22 +1,22 @@
 import { Response } from "express";
 import Joi, { isError } from "joi";
-const moment = require("moment");
+import { calculateTotalDays } from "../helper/calculation";
 import { UserModel } from "../models/user.model";
 import { Request } from "../request";
+import {
+  getAmountByUserId,
+  getAmountByUserIdAndMonth,
+} from "../services/amount.service";
 import {
   getPopulatedUserById,
   getUserByEmail,
   updateUser,
 } from "../services/user.service";
 import {
-  getAmountByUserIdAndMonth,
-  saveAmount,
-  updateAmount,
-} from "../services/amount.service";
-import { AmountModel } from "../models/amount.model";
-import { savePortfolio } from "../services/portfolio.service";
-import { PortfolioModel } from "../models/portfolio.model";
-import { calculateMonth, calculateTotalDays } from "../helper/calculation";
+  getPortfolioByUserId,
+  getPortfolioByUserIdAndMonth,
+} from "../services/portfolio.service";
+const moment = require("moment");
 
 export const profileUpdateSchema = Joi.object().keys({
   // profileImage: Joi.string()
@@ -33,11 +33,6 @@ export const profileUpdateSchema = Joi.object().keys({
   email: Joi.string().email().optional(),
   firstName: Joi.string().optional().allow(""),
   lastName: Joi.string().optional().allow(""),
-});
-
-export const depositAmountSchema = Joi.object().keys({
-  amount: Joi.number().optional(),
-  paymentMode: Joi.string().optional().allow(""),
 });
 
 export const profileUpdateUserController = async (
@@ -127,47 +122,20 @@ export const getUserByIdController = async (req: Request, res: Response) => {
   }
 };
 
-export const depositAmountController = async (req: Request, res: Response) => {
+export const getAmountController = async (req: Request, res: Response) => {
   try {
     const authUser = req.authUser;
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-    const payloadValue = await depositAmountSchema
-      .validateAsync(req.body)
-      .then((value) => {
-        return value;
-      })
-      .catch((e) => {
-        console.log(e);
-        if (isError(e)) {
-          res.status(422).json(e);
-        } else {
-          res.status(422).json({ message: e.message });
-        }
-      });
-
-    if (!payloadValue) {
-      return;
-    }
-    let { totalDays, month } = calculateTotalDays();
-    payloadValue.userId = authUser._id;
-    payloadValue.depositAmount = payloadValue.amount;
-    payloadValue.month = month;
-    let amount = await saveAmount(new AmountModel(payloadValue));
-    await savePortfolio(
-      new PortfolioModel({
-        userId: authUser._id,
-        totalCapital: payloadValue.amount,
-        month,
-        totalDays,
-      })
-    );
+    let amount = await getAmountByUserId(authUser._id);
+    // let { month } = calculateTotalDays();
+    // let amount = await getAmountByUserIdAndMonth(authUser._id, month);
     return res.status(200).json(amount);
   } catch (error) {
     console.log(
       "error",
-      "error at depositAmountController#################### ",
+      "error at getAmountController#################### ",
       error
     );
     return res.status(500).json({
@@ -177,48 +145,20 @@ export const depositAmountController = async (req: Request, res: Response) => {
   }
 };
 
-export const withdrawAmountController = async (req: Request, res: Response) => {
+export const getPortfolioController = async (req: Request, res: Response) => {
   try {
     const authUser = req.authUser;
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-    const payloadValue = await depositAmountSchema
-      .validateAsync(req.body)
-      .then((value) => {
-        return value;
-      })
-      .catch((e) => {
-        console.log(e);
-        if (isError(e)) {
-          res.status(422).json(e);
-        } else {
-          res.status(422).json({ message: e.message });
-        }
-      });
-
-    if (!payloadValue) {
-      return;
-    }
-    let { month } = calculateTotalDays();
-    let amount = await getAmountByUserIdAndMonth(authUser._id, month);
-    if (!amount) {
-      return res.status(403).send({ message: "Invalid amount" });
-    }
-    await updateAmount(
-      new AmountModel({
-        ...amount.toObject(),
-        withDrawalAmount: payloadValue.amount,
-      })
-    );
-    return res.status(200).json({
-      ...amount.toObject(),
-      withDrawalAmount: payloadValue.amount,
-    });
+    let portfolio = await getPortfolioByUserId(authUser._id);
+    // let { month } = calculateTotalDays();
+    // let amount = await getPortfolioByUserIdAndMonth(authUser._id, month);
+    return res.status(200).json(portfolio);
   } catch (error) {
     console.log(
       "error",
-      "error at withdrawAmountController#################### ",
+      "error at getPortfolioController#################### ",
       error
     );
     return res.status(500).json({

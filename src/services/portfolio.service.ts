@@ -25,6 +25,13 @@ export const getPortfolioByUserIdAndMonth = async (
   return portfolio ? portfolio : null;
 };
 
+export const getPortfolioByUserId = async (userId: string) => {
+  const portfolio = await PortfolioModel.find({
+    userId,
+  });
+  return portfolio ? portfolio : [];
+};
+
 export const savePortfolio = async (portfolio: IPortfolio) => {
   const savedPortfolio = await new PortfolioModel(portfolio).save();
   return savedPortfolio;

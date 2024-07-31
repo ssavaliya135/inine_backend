@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { Request } from "../../request";
 import { getAllUser, getPopulatedUserById } from "../../services/user.service";
-import Joi from "joi";
+import Joi, { isError } from "joi";
 import {
   getPortfolioByUserIdAndMonth,
   savePortfolio,
@@ -14,11 +14,22 @@ import {
   calculateTotalDays,
   overallPNL,
 } from "../../helper/calculation";
-import { updateAmount } from "../../services/amount.service";
+import {
+  getAmountByUserIdAndMonth,
+  saveAmount,
+  updateAmount,
+} from "../../services/amount.service";
+import { AmountModel } from "../../models/amount.model";
+import moment from "moment";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
   date: Joi.string().required(),
+});
+
+export const depositAmountSchema = Joi.object().keys({
+  amount: Joi.number().optional(),
+  paymentMode: Joi.string().optional().allow(""),
 });
 
 export const getAllUserAdminController = async (
@@ -78,12 +89,15 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
-    let { month } = calculateTotalDays();
+    let { month } = calculateMonth(payloadValue.date);
     let portfolio = await getPortfolioByUserIdAndMonth(userId, month);
+    const itemDate = moment(payloadValue.date, "YYYY/MM/DD");
+    const dayFullName = itemDate.format("dddd");
     let portfolioObj = {
       ROI: calculateROI(portfolio.totalCapital, payloadValue.pnl),
       pnlValue: payloadValue.pnl,
       date: payloadValue.date,
+      day: dayFullName,
     };
     portfolio.pnlList.push(portfolioObj);
     let {
@@ -122,12 +136,13 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     portfolio.MDDRatio = (MDD / portfolio.totalCapital) * 100;
     portfolio.avgProfit = winDays ? totalWinProfit / winDays : 0;
     portfolio.avgLoss = lossDays ? totalLoss / lossDays : 0;
-    portfolio.winRation = portfolio.totalDays
-      ? (winDays / portfolio.totalDays) * 100
-      : 0;
-    portfolio.lossRation = portfolio.totalDays
-      ? (lossDays / portfolio.totalDays) * 100
-      : 0;
+    let pnlDays = portfolio.pnlList.length;
+    portfolio.winRation = pnlDays ? (winDays / pnlDays) * 100 : 0;
+    portfolio.lossRation = pnlDays ? (lossDays / pnlDays) * 100 : 0;
+    portfolio.riskReward = portfolio.avgProfit / portfolio.avgLoss;
+    portfolio.expectancy =
+      portfolio.winRation * portfolio.avgProfit -
+      portfolio.lossRation * portfolio.avgLoss;
     let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
     res.status(200).json(updatedPortfolio);
   } catch (error) {
@@ -135,6 +150,61 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     return res.status(500).json({
       message: "Something happened wrong try again after sometime",
       error: JSON.stringify(error),
+    });
+  }
+};
+
+export const amountAdminController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      res.status(403).send({ message: "Invalid userId provided" });
+    }
+    const payloadValue = await depositAmountSchema
+      .validateAsync(req.body)
+      .then((value) => {
+        return value;
+      })
+      .catch((e) => {
+        console.log(e);
+        if (isError(e)) {
+          res.status(422).json(e);
+        } else {
+          res.status(422).json({ message: e.message });
+        }
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+    let { totalDays, month } = calculateTotalDays(new Date());
+    payloadValue.userId = userId;
+    payloadValue.amount = payloadValue.amount;
+    payloadValue.month = month;
+    payloadValue.paymentMode = payloadValue.paymentMode;
+    let amount = await saveAmount(new AmountModel(payloadValue));
+    await savePortfolio(
+      new PortfolioModel({
+        userId: userId,
+        totalCapital: payloadValue.amount,
+        month,
+        totalDays,
+      })
+    );
+    return res.status(200).json(amount);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at amountAdminController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
     });
   }
 };

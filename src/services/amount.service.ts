@@ -25,6 +25,13 @@ export const getAmountByUserIdAndMonth = async (
   return amount ? amount : null;
 };
 
+export const getAmountByUserId = async (userId: string) => {
+  const amount = await AmountModel.find({
+    userId,
+  });
+  return amount ? amount : [];
+};
+
 export const saveAmount = async (amount: IAmount) => {
   const savedAmount = await new AmountModel(amount).save();
   return savedAmount;

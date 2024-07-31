@@ -7,6 +7,7 @@ export interface IPortfolio extends Document {
   totalDays: number;
   pnlList: {
     date: string;
+    day: string;
     pnlValue: number;
     ROI: number;
   }[];
@@ -55,6 +56,7 @@ const portfolio = new Schema<IPortfolio>(
     pnlList: [
       {
         date: String,
+        day: String,
         pnlValue: Number,
         ROI: Number,
       },
