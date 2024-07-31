@@ -4,20 +4,21 @@ export interface IPortfolio extends Document {
   _id: string;
   userId: Types.ObjectId;
   month: string;
+  totalDays: number;
   pnlList: {
     date: string;
     pnlValue: number;
     ROI: number;
   }[];
-  totalCapital: string;
-  overallPNL: string;
+  totalCapital: number;
+  totalPnlValue: number;
   createdAt: Date;
   updatedAt: Date;
-  overallROI: string;
+  totalROI: number;
   winDays: number;
   winRation: number;
   avgProfit: number;
-  totalProfit: number;
+  totalWinProfit: number;
   maxProfit: number;
   todayPNL: number;
   currentWeekPNL: number;
@@ -28,8 +29,8 @@ export interface IPortfolio extends Document {
   avgLoss: number;
   totalLoss: number;
   maxLoss: number;
-  winStreak: number;
-  lossStreak: number;
+  maxWinStreak: number;
+  maxLossStreak: number;
   MDD: number;
   MDDRatio: number;
   riskReward: number;
@@ -41,10 +42,15 @@ const portfolio = new Schema<IPortfolio>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "users",
-      required: true,
+      default: null,
     },
     month: {
       type: String,
+      default: "",
+    },
+    totalDays: {
+      type: Number,
+      default: 0,
     },
     pnlList: [
       {
@@ -54,16 +60,16 @@ const portfolio = new Schema<IPortfolio>(
       },
     ],
     totalCapital: {
-      type: String,
-      default: "",
+      type: Number,
+      default: 0,
     },
-    overallPNL: {
-      type: String,
-      default: "",
+    totalPnlValue: {
+      type: Number,
+      default: 0,
     },
-    overallROI: {
-      type: String,
-      default: "",
+    totalROI: {
+      type: Number,
+      default: 0,
     },
     winDays: {
       type: Number,
@@ -77,7 +83,7 @@ const portfolio = new Schema<IPortfolio>(
       type: Number,
       default: 0,
     },
-    totalProfit: {
+    totalWinProfit: {
       type: Number,
       default: 0,
     },
@@ -121,11 +127,11 @@ const portfolio = new Schema<IPortfolio>(
       type: Number,
       default: 0,
     },
-    winStreak: {
+    maxWinStreak: {
       type: Number,
       default: 0,
     },
-    lossStreak: {
+    maxLossStreak: {
       type: Number,
       default: 0,
     },

@@ -5,12 +5,20 @@ import Joi from "joi";
 import {
   getPortfolioByUserIdAndMonth,
   savePortfolio,
+  updatePortfolio,
 } from "../../services/portfolio.service";
 import { PortfolioModel } from "../../models/portfolio.model";
+import {
+  calculateMonth,
+  calculateROI,
+  calculateTotalDays,
+  overallPNL,
+} from "../../helper/calculation";
+import { updateAmount } from "../../services/amount.service";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
-  month: Joi.string().required(),
+  date: Joi.string().required(),
 });
 
 export const getAllUserAdminController = async (
@@ -45,7 +53,7 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request !");
     }
-    const userId = req.params.id;
+    const userId = req.params.userId;
     if (!userId) {
       return res.status(403).json({
         message: "please provide valid userID",
@@ -70,15 +78,58 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
-    let portfolio = await getPortfolioByUserIdAndMonth(
-      userId,
-      payloadValue.month
-    );
-    let portfolioObj = {};
-    if (!portfolio) {
-      portfolio = await savePortfolio(new PortfolioModel(portfolioObj));
-    }
-    res.status(200).json(portfolio);
+    let { month } = calculateTotalDays();
+    let portfolio = await getPortfolioByUserIdAndMonth(userId, month);
+    let portfolioObj = {
+      ROI: calculateROI(portfolio.totalCapital, payloadValue.pnl),
+      pnlValue: payloadValue.pnl,
+      date: payloadValue.date,
+    };
+    portfolio.pnlList.push(portfolioObj);
+    let {
+      totalPnlValue,
+      totalROI,
+      winDays,
+      lossDays,
+      totalWinProfit,
+      totalLoss,
+      maxProfit,
+      maxLoss,
+      maxWinStreak,
+      maxLossStreak,
+      latestProfit,
+      latestLoss,
+      todayPNL,
+      currentWeekPNL,
+      currentMonthPNL,
+    } = overallPNL(portfolio.pnlList);
+    portfolio.totalPnlValue = totalPnlValue;
+    portfolio.totalROI = totalROI;
+    portfolio.winDays = winDays;
+    portfolio.lossDays = lossDays;
+    portfolio.totalWinProfit = totalWinProfit;
+    portfolio.totalLoss = totalLoss;
+    portfolio.maxProfit = maxProfit;
+    portfolio.maxLoss = maxLoss;
+    portfolio.maxWinStreak = maxWinStreak;
+    portfolio.maxLossStreak = maxLossStreak;
+    portfolio.todayPNL = todayPNL;
+    portfolio.currentWeekPNL = currentWeekPNL;
+    portfolio.currentMonthPNL = currentMonthPNL;
+    portfolio.currentDD = latestLoss - latestProfit;
+    let MDD = maxLoss - maxProfit;
+    portfolio.MDD = MDD;
+    portfolio.MDDRatio = (MDD / portfolio.totalCapital) * 100;
+    portfolio.avgProfit = winDays ? totalWinProfit / winDays : 0;
+    portfolio.avgLoss = lossDays ? totalLoss / lossDays : 0;
+    portfolio.winRation = portfolio.totalDays
+      ? (winDays / portfolio.totalDays) * 100
+      : 0;
+    portfolio.lossRation = portfolio.totalDays
+      ? (lossDays / portfolio.totalDays) * 100
+      : 0;
+    let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
+    res.status(200).json(updatedPortfolio);
   } catch (error) {
     console.log("error", "error in getAllUser", error);
     return res.status(500).json({

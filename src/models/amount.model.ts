@@ -1,10 +1,10 @@
-import { model, Schema, Types, Document } from "mongoose";
-import { IUser } from "./user.model";
+import { Document, Schema, Types, model } from "mongoose";
 
 export interface IAmount extends Document {
   _id?: string;
-  depositAmount?: string;
-  withDrawalAmount?: string;
+  month: string;
+  depositAmount?: number;
+  withDrawalAmount?: number;
   userId?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
@@ -12,13 +12,17 @@ export interface IAmount extends Document {
 
 const amount = new Schema<IAmount>(
   {
-    depositAmount: {
-      type: String,
+    month: {
+      type: "string",
       default: "",
     },
+    depositAmount: {
+      type: Number,
+      default: 0,
+    },
     withDrawalAmount: {
-      type: String,
-      default: "",
+      type: Number,
+      default: 0,
     },
     userId: {
       type: Schema.Types.ObjectId,
