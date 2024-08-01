@@ -50,13 +50,13 @@ export const loginSchema = Joi.object({
   phoneNumber: Joi.string()
     .required()
     .external(async (v: string) => {
-      const user: IUser = await getUserByPhoneNumber(v);
-      if (!user) {
+      const user = await getUserByPhoneNumber(v);
+      if (user.length == 0) {
         throw new Error(
           "This phoneNumber is not registered. Please use a registered phoneNumber."
         );
       }
-      return user;
+      return user[0];
     }),
 });
 

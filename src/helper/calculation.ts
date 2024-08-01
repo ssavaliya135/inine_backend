@@ -1,23 +1,23 @@
 import moment from "moment";
 
 export const calculateMonth = (date) => {
-  const currentDate = new Date(date);
+  const currentDate = moment(date, "DD/MM/YYYY");
+
   const formatter = new Intl.DateTimeFormat("en", { month: "short" });
 
-  const currentMonth = formatter.format(currentDate);
-  const currentYear = currentDate.getFullYear();
+  const currentMonth = formatter.format(currentDate.toDate());
+  const currentYear = currentDate.year();
 
   // Get the previous month
-  const previousMonthDate = new Date(currentDate);
-  previousMonthDate.setMonth(currentDate.getMonth() - 1);
-  const previousMonth = formatter.format(previousMonthDate);
-  const previousMonthYear = previousMonthDate.getFullYear();
+  const previousMonthDate = moment(currentDate).subtract(1, "month");
+  const previousMonth = formatter.format(previousMonthDate.toDate());
+  const previousMonthYear = previousMonthDate.year();
 
   const lastFridayPreviousMonth = getLastFriday(previousMonthDate);
   const lastThursdayCurrentMonth = getLastThursday(currentDate);
 
   let month;
-  if (moment(date).isSameOrBefore(lastThursdayCurrentMonth)) {
+  if (currentDate.isSameOrBefore(lastThursdayCurrentMonth)) {
     if (currentYear === previousMonthYear) {
       month = `${previousMonth}-${currentMonth} (${currentYear})`;
     } else {
@@ -26,10 +26,9 @@ export const calculateMonth = (date) => {
         .slice(2)})`;
     }
   } else {
-    const nextMonthDate = new Date(currentDate);
-    nextMonthDate.setMonth(currentDate.getMonth() + 1);
-    const nextMonth = formatter.format(nextMonthDate);
-    const nextMonthYear = nextMonthDate.getFullYear();
+    const nextMonthDate = moment(currentDate).add(1, "month");
+    const nextMonth = formatter.format(nextMonthDate.toDate());
+    const nextMonthYear = nextMonthDate.year();
 
     if (currentYear === nextMonthYear) {
       month = `${currentMonth}-${nextMonth} (${currentYear})`;
@@ -41,7 +40,7 @@ export const calculateMonth = (date) => {
   }
 
   return {
-    currentDate,
+    currentDate: currentDate.toDate(),
     lastFridayPreviousMonth,
     lastThursdayCurrentMonth,
     month,
@@ -85,9 +84,11 @@ export const overallPNL = (pnlList) => {
   const today = moment().startOf("day");
   const startOfWeek = moment().startOf("week");
   const startOfMonth = moment().startOf("month");
+
   let totals = pnlList.reduce(
     (acc, item) => {
-      const itemDate = moment(item.date);
+      // Parse the item.date with the known format
+      const itemDate = moment(item.date, "DD/MM/YYYY");
 
       acc.totalPnlValue += item.pnlValue;
       acc.totalROI += item.ROI;
@@ -131,6 +132,7 @@ export const overallPNL = (pnlList) => {
       if (itemDate.isSameOrAfter(startOfMonth)) {
         acc.currentMonthPNL += item.pnlValue;
       }
+
       return acc;
     },
     {
@@ -153,5 +155,6 @@ export const overallPNL = (pnlList) => {
       currentMonthPNL: 0,
     }
   );
+
   return totals;
 };

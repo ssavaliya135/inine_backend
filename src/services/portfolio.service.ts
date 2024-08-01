@@ -28,7 +28,10 @@ export const getPortfolioByUserIdAndMonth = async (
 export const getPortfolioByUserId = async (userId: string) => {
   const portfolio = await PortfolioModel.find({
     userId,
-  });
+  })
+    .lean()
+    .sort({ createdAt: -1 })
+    .select("month totalCapital pnlList totalROI");
   return portfolio ? portfolio : [];
 };
 

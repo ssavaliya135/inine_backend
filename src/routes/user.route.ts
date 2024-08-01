@@ -4,6 +4,7 @@ import {
   profileUpdateUserController,
   getAmountController,
   getPortfolioController,
+  getMonthController,
 } from "../controllers/user.controller";
 import { validateAuthIdToken } from "../middleware/validateAuthIdToken";
 
@@ -13,5 +14,6 @@ userRoute.patch("/profileUpdate", profileUpdateUserController);
 userRoute.get("/", validateAuthIdToken, getUserByIdController);
 userRoute.get("/getAmount", validateAuthIdToken, getAmountController);
 userRoute.post("/getPortfolio", validateAuthIdToken, getPortfolioController);
+userRoute.get("/getMonth", validateAuthIdToken, getMonthController);
 
 export default userRoute;

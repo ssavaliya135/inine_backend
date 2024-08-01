@@ -1,6 +1,11 @@
 import { Response } from "express";
 import { Request } from "../../request";
-import { getAllUser, getPopulatedUserById } from "../../services/user.service";
+import {
+  getAllUser,
+  getPopulatedUserById,
+  getUserByName,
+  getUserByPhoneNumber,
+} from "../../services/user.service";
 import Joi, { isError } from "joi";
 import {
   getPortfolioByUserIdAndMonth,
@@ -31,6 +36,7 @@ export const addPNLSchema = Joi.object({
 export const depositAmountSchema = Joi.object().keys({
   amount: Joi.number().optional(),
   paymentMode: Joi.string().optional().allow(""),
+  date: Joi.string().required(),
 });
 
 export const getAllUserAdminController = async (
@@ -52,6 +58,54 @@ export const getAllUserAdminController = async (
     }
   } catch (error) {
     console.log("error", "error in getAllUser", error);
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime",
+      error: JSON.stringify(error),
+    });
+  }
+};
+
+export const searchUserAdminController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request !");
+    }
+    const phnNumber = req.params.phnNumber;
+    if (!phnNumber) {
+      return res.status(403).json("invalid number");
+    }
+    const populatedUser = await getUserByPhoneNumber(phnNumber);
+    return res.status(200).json(populatedUser);
+  } catch (error) {
+    console.log("error", "error in searchUserAdminController", error);
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime",
+      error: JSON.stringify(error),
+    });
+  }
+};
+
+export const searchUserByNameAdminController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request !");
+    }
+    const firstName = req.params.firstName;
+    if (!firstName) {
+      return res.status(403).json("invalid firstName");
+    }
+    const populatedUser = await getUserByName(firstName);
+    return res.status(200).json(populatedUser);
+  } catch (error) {
+    console.log("error", "error in searchUserByNameAdminController", error);
     return res.status(500).json({
       message: "Something happened wrong try again after sometime",
       error: JSON.stringify(error),
@@ -94,9 +148,13 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
       payloadValue.pnl = payloadValue.pnl - payloadValue.tax;
     }
     let { month } = calculateMonth(payloadValue.date);
+    console.log(month, "&&&&");
+
     let portfolio = await getPortfolioByUserIdAndMonth(userId, month);
-    const itemDate = moment(payloadValue.date, "YYYY/MM/DD");
+    const itemDate = moment(payloadValue.date, "DD/MM/YYYY");
     const dayFullName = itemDate.format("dddd");
+    console.log(itemDate, dayFullName, "::::::::");
+
     let portfolioObj = {
       ROI: calculateROI(portfolio.totalCapital, payloadValue.pnl),
       pnlValue: payloadValue.pnl,
@@ -186,7 +244,7 @@ export const amountAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
-    let { totalDays, month } = calculateTotalDays(new Date());
+    let { totalDays, month } = calculateTotalDays(payloadValue.date);
     payloadValue.userId = userId;
     payloadValue.amount = payloadValue.amount;
     payloadValue.month = month;
