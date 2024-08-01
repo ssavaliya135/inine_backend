@@ -2,8 +2,8 @@ node_modules/
 dist/
 public/
 env/
-credentials/
 exports/
 .DS_Store
 .env
 .vscode
+# credentials/
