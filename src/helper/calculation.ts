@@ -6,40 +6,44 @@ export const calculateMonth = (date) => {
 
   const currentMonth = formatter.format(currentDate);
   const currentYear = currentDate.getFullYear();
-  const nextMonthDate = new Date(currentDate);
-  nextMonthDate.setMonth(currentDate.getMonth() + 1);
-  const nextMonth = formatter.format(nextMonthDate);
-  const nextMonthYear = nextMonthDate.getFullYear();
-  console.log(`Current Month: ${currentMonth}`);
-  console.log(`Next Month: ${nextMonth}`);
-  const lastThursday = getLastThursday(date);
+
+  // Get the previous month
+  const previousMonthDate = new Date(currentDate);
+  previousMonthDate.setMonth(currentDate.getMonth() - 1);
+  const previousMonth = formatter.format(previousMonthDate);
+  const previousMonthYear = previousMonthDate.getFullYear();
+
+  const lastFridayPreviousMonth = getLastFriday(previousMonthDate);
+  const lastThursdayCurrentMonth = getLastThursday(currentDate);
+
   let month;
-  if (moment(date).isSameOrBefore(lastThursday)) {
-    if (currentYear == nextMonthYear) {
+  if (moment(date).isSameOrBefore(lastThursdayCurrentMonth)) {
+    if (currentYear === previousMonthYear) {
+      month = `${previousMonth}-${currentMonth} (${currentYear})`;
+    } else {
+      month = `${previousMonth}-${currentMonth} (${previousMonthYear}-${currentYear
+        .toString()
+        .slice(2)})`;
+    }
+  } else {
+    const nextMonthDate = new Date(currentDate);
+    nextMonthDate.setMonth(currentDate.getMonth() + 1);
+    const nextMonth = formatter.format(nextMonthDate);
+    const nextMonthYear = nextMonthDate.getFullYear();
+
+    if (currentYear === nextMonthYear) {
       month = `${currentMonth}-${nextMonth} (${currentYear})`;
     } else {
       month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
         .toString()
         .slice(2)})`;
     }
-  } else {
-    const nextMonthPlusOneDate = new Date(nextMonthDate);
-    nextMonthPlusOneDate.setMonth(nextMonthDate.getMonth() + 1);
-    const nextMonthPlusOne = formatter.format(nextMonthPlusOneDate);
-    const nextMonthPlusOneYear = nextMonthPlusOneDate.getFullYear();
-
-    if (nextMonthYear === nextMonthPlusOneYear) {
-      month = `${nextMonth}-${nextMonthPlusOne} (${nextMonthYear})`;
-    } else {
-      month = `${nextMonth}-${nextMonthPlusOne} (${nextMonthYear}-${nextMonthPlusOneYear
-        .toString()
-        .slice(2)})`;
-    }
   }
-  // return `${currentMonth}-${nextMonth}`;
+
   return {
     currentDate,
-    nextMonthDate,
+    lastFridayPreviousMonth,
+    lastThursdayCurrentMonth,
     month,
   };
 };
@@ -55,18 +59,10 @@ function getLastFriday(date) {
 }
 
 export const calculateTotalDays = (date) => {
-  let { currentDate, nextMonthDate, month } = calculateMonth(date);
-
-  // Get the first Friday of the current month
-  const lastFridayCurrentMonth = getLastFriday(currentDate);
-
-  // Get the last Thursday of the next month
-  const lastThursdayNextMonth = getLastThursday(nextMonthDate);
-
-  // Calculate the total days between these dates
+  let { lastFridayPreviousMonth, lastThursdayCurrentMonth, month } =
+    calculateMonth(date);
   const totalDays =
-    lastThursdayNextMonth.diff(lastFridayCurrentMonth, "days") + 1;
-
+    lastThursdayCurrentMonth.diff(lastFridayPreviousMonth, "days") + 1;
   return { totalDays, month };
 };
 

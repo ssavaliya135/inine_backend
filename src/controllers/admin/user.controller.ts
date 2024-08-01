@@ -24,6 +24,7 @@ import moment from "moment";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
+  tax: Joi.number().optional(),
   date: Joi.string().required(),
 });
 
@@ -89,6 +90,9 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
+    if (payloadValue.tax) {
+      payloadValue.pnl = payloadValue.pnl - payloadValue.tax;
+    }
     let { month } = calculateMonth(payloadValue.date);
     let portfolio = await getPortfolioByUserIdAndMonth(userId, month);
     const itemDate = moment(payloadValue.date, "YYYY/MM/DD");
@@ -118,6 +122,7 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
       currentMonthPNL,
     } = overallPNL(portfolio.pnlList);
     portfolio.totalPnlValue = totalPnlValue;
+    portfolio.tax = payloadValue.tax;
     portfolio.totalROI = totalROI;
     portfolio.winDays = winDays;
     portfolio.lossDays = lossDays;

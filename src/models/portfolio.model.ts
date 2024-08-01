@@ -12,6 +12,7 @@ export interface IPortfolio extends Document {
     ROI: number;
   }[];
   totalCapital: number;
+  tax: number;
   totalPnlValue: number;
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +63,10 @@ const portfolio = new Schema<IPortfolio>(
       },
     ],
     totalCapital: {
+      type: Number,
+      default: 0,
+    },
+    tax: {
       type: Number,
       default: 0,
     },

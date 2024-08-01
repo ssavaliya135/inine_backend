@@ -35,6 +35,10 @@ export const profileUpdateSchema = Joi.object().keys({
   lastName: Joi.string().optional().allow(""),
 });
 
+export const getPortfolioSchema = Joi.object().keys({
+  month: Joi.string().optional().allow(""),
+});
+
 export const profileUpdateUserController = async (
   req: Request,
   res: Response
@@ -151,7 +155,27 @@ export const getPortfolioController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-    let portfolio = await getPortfolioByUserId(authUser._id);
+    const payloadValue = await getPortfolioSchema
+      .validateAsync(req.body)
+      .then((value) => {
+        return value;
+      })
+      .catch((e) => {
+        console.log(e);
+        if (isError(e)) {
+          res.status(422).json(e);
+        } else {
+          res.status(422).json({ message: e.message });
+        }
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+    let portfolio = await getPortfolioByUserIdAndMonth(
+      authUser._id,
+      payloadValue.month
+    );
     // let { month } = calculateTotalDays();
     // let amount = await getPortfolioByUserIdAndMonth(authUser._id, month);
     return res.status(200).json(portfolio);
