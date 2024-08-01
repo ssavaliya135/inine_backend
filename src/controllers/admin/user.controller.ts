@@ -146,7 +146,7 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
     res.status(200).json(updatedPortfolio);
   } catch (error) {
-    console.log("error", "error in getAllUser", error);
+    console.log("error", "error in addPNLAdminController", error);
     return res.status(500).json({
       message: "Something happened wrong try again after sometime",
       error: JSON.stringify(error),
