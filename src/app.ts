@@ -4,9 +4,11 @@ import { connectDb } from "./dbConnections";
 import adminRoute from "./routes/admin.route";
 import authRoute from "./routes/auth.route";
 import userRoute from "./routes/user.route";
+import { firebase } from "./helper/firebase";
 
 const dotenv = require("dotenv");
 dotenv.config();
+firebase();
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -18,6 +20,12 @@ app.use(
     exposedHeaders: "x-auth-token",
   })
 );
+app.use((req, res, next) => {
+  const info = req.method + " " + res.statusCode + " " + req.url;
+  console.log("API HIT -------------->", info, "\n|\nv\n|\nv\n");
+  next();
+});
+
 app.use("/admin", adminRoute);
 app.use("/auth", authRoute);
 app.use("/user", userRoute);

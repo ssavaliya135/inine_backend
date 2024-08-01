@@ -10,7 +10,6 @@ import {
   updateUser,
 } from "../../services/user.service";
 import { IUser, UserModel } from "../../models/user.model";
-import { UserDefaults } from "../../models/user.model";
 
 export const loginSchema = Joi.object({
   email: Joi.string()
@@ -86,7 +85,6 @@ export const adminRegisterController = async (req: Request, res: Response) => {
 
     const user = await saveUser(
       new UserModel({
-        ...UserDefaults,
         ...payloadValue,
         isRegistered: true,
       })

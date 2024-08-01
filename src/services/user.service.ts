@@ -10,6 +10,19 @@ export const getAllUser = async () => {
   return user;
 };
 
+export const getAllUserForNotification = async (
+  page: number,
+  limit: number
+) => {
+  const user = await UserModel.find()
+    .select("FCMToken")
+    .skip(page)
+    .limit(limit)
+    .lean();
+  // return user ? user.map((item) => new User(item)) : null;
+  return user;
+};
+
 export const getPopulatedUserById = async (_id: string) => {
   const user = await UserModel.findById(_id).select("-password").lean();
   // return new User(omit(user, ["RESETToken"]));
@@ -19,6 +32,13 @@ export const getPopulatedUserById = async (_id: string) => {
 export const getUserByPhoneNumber = async (phoneNumber: string) => {
   const user = await UserModel.find({
     phoneNumber: { $regex: new RegExp(`^${phoneNumber}`) },
+  });
+  return user ? user : [];
+};
+
+export const getUserByPhoneNumberForSchema = async (phoneNumber: string) => {
+  const user = await UserModel.find({
+    phoneNumber,
   });
   return user ? user : [];
 };

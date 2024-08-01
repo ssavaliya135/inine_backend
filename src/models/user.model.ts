@@ -4,6 +4,7 @@ export interface IUser extends Document {
   _id: string;
   firstName: string;
   lastName: string;
+  FCMToken: string[];
   userType: string;
   password: string;
   phoneNumber: string;
@@ -13,11 +14,6 @@ export interface IUser extends Document {
   email: string;
   token: string;
 }
-
-export const UserDefaults = {
-  firebaseUserId: "",
-  FCMToken: [],
-};
 
 const user = new Schema<IUser>(
   {
@@ -29,6 +25,11 @@ const user = new Schema<IUser>(
       type: String,
       required: false,
     },
+    FCMToken: [
+      {
+        type: String,
+      },
+    ],
     userType: {
       type: String,
       default: "USER",

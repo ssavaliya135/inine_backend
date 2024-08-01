@@ -30,7 +30,7 @@ export const registerSchema = Joi.object({
     .required()
     .external(async (v: string) => {
       const user = await getUserByPhoneNumber(v);
-      if (user != null) {
+      if (user.length > 0) {
         throw new Error(
           "This phoneNumber  is already associated with another account. Please use a different phoneNumber."
         );
@@ -43,6 +43,7 @@ export const registerSchema = Joi.object({
     .custom((v) => {
       return jwt.sign(v, process.env.JWT_SECRET as Secret);
     }),
+  FCMToken: Joi.string().required(),
 });
 
 export const loginSchema = Joi.object({
@@ -93,7 +94,7 @@ export const registerController = async (req: Request, res: Response) => {
 
     if (payloadValue.phoneNumber) {
       const guestUser = await getUserByPhoneNumber(payloadValue.phoneNumber);
-      if (guestUser != null) {
+      if (guestUser.length > 0) {
         return res.status(422).json({
           message: "please enter different phone number",
         });
@@ -104,6 +105,7 @@ export const registerController = async (req: Request, res: Response) => {
       new UserModel({
         ...payloadValue,
         isRegistered: true,
+        FCMToken: [payloadValue.FCMToken],
       })
     );
 

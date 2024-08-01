@@ -2,6 +2,7 @@ import { Response } from "express";
 import { Request } from "../../request";
 import {
   getAllUser,
+  getAllUserForNotification,
   getPopulatedUserById,
   getUserByName,
   getUserByPhoneNumber,
@@ -26,6 +27,7 @@ import {
 } from "../../services/amount.service";
 import { AmountModel } from "../../models/amount.model";
 import moment from "moment";
+import { sendNotification } from "../../helper/notification";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
@@ -263,6 +265,70 @@ export const amountAdminController = async (req: Request, res: Response) => {
     console.log(
       "error",
       "error at amountAdminController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const sendNotificationController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    const CHUNK_SIZE = 500;
+    const fetchUsersInChunks = async (offset, chunkSize) => {
+      const users = await getAllUserForNotification(offset, chunkSize);
+      return users;
+    };
+    let offset = 0;
+    let fetchMoreUsers = true;
+
+    while (fetchMoreUsers) {
+      const users = await fetchUsersInChunks(offset, CHUNK_SIZE);
+      if (users.length === 0) {
+        fetchMoreUsers = false;
+        break;
+      }
+      let fcmToken = [];
+      users.forEach((user) => {
+        if (user.FCMToken?.length > 0) {
+          fcmToken.push(...user.FCMToken);
+        }
+      });
+
+      const number = Math.ceil(fcmToken.length / 490);
+      for (let i = 0; i < number; i++) {
+        const chunk = fcmToken.slice(i * 490, (i + 1) * 490);
+
+        const notificationObj = {
+          tokens: chunk,
+          notification: {
+            title: "hello world",
+            body: "what is your name",
+          },
+          data: {
+            type: "notificationType",
+          },
+        };
+
+        await sendNotification(notificationObj);
+      }
+
+      offset += CHUNK_SIZE;
+    }
+    res.status(200).json("successfull");
+  } catch (error) {
+    console.log(
+      "error",
+      "error at sendNotificationController#################### ",
       error
     );
     return res.status(500).json({
