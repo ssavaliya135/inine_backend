@@ -5,7 +5,9 @@ export const deleteUser = async (_id: string) => {
 };
 
 export const getAllUser = async () => {
-  const user = await UserModel.find().select("firstName phoneNumber");
+  const user = await UserModel.find({ isRegistered: true }).select(
+    "firstName phoneNumber"
+  );
   // return user ? user.map((item) => new User(item)) : null;
   return user;
 };

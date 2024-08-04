@@ -25,17 +25,16 @@ export const registerSchema = Joi.object({
       }
       return v;
     }),
-  phoneNumber: Joi.string()
-    .required()
-    .external(async (v: string) => {
-      const user = await getUserByPhoneNumber(v);
-      if (user.length > 0) {
-        throw new Error(
-          "This phoneNumber  is already associated with another account. Please use a different phoneNumber."
-        );
-      }
-      return v;
-    }),
+  phoneNumber: Joi.string().required(),
+  // .external(async (v: string) => {
+  //   const user = await getUserByPhoneNumber(v);
+  //   if (user.length == 0) {
+  //     throw new Error(
+  //       "This phoneNumber  is not registered. Please try again"
+  //     );
+  //   }
+  //   return v;
+  // }),
   password: Joi.string()
     .required()
     .min(6)
@@ -90,20 +89,21 @@ export const registerController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
-
+    let isRegistered = false;
     if (payloadValue.phoneNumber) {
       const guestUser = await getUserByPhoneNumber(payloadValue.phoneNumber);
       if (guestUser.length > 0) {
-        return res.status(422).json({
-          message: "please enter different phone number",
-        });
+        isRegistered = true;
+        // return res.status(422).json({
+        //   message: "please register your device",
+        // });
       }
     }
 
     let user = await saveUser(
       new UserModel({
         ...payloadValue,
-        isRegistered: true,
+        isRegistered: isRegistered,
         FCMToken: [payloadValue.FCMToken],
       })
     );

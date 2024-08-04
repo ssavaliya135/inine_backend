@@ -63,9 +63,69 @@ const registerSchema = Joi.object({
   // pushToken: Joi.string().optional().disallow(null).allow(""),
 });
 
+const userRegisterSchema = Joi.object({
+  phoneNumber: Joi.string()
+    .required()
+    .external(async (v: string) => {
+      const user = await getUserByPhoneNumber(v);
+      if (user.length > 0) {
+        throw new Error(
+          "This phoneNumber  is already associated with another account. Please use a different phoneNumber."
+        );
+      }
+      return v;
+    }),
+});
+
 export const adminRegisterController = async (req: Request, res: Response) => {
   try {
     const payloadValue = await registerSchema
+      .validateAsync(req.body)
+      .then((value) => {
+        return value;
+      })
+      .catch((e) => {
+        console.log(e);
+        if (isError(e)) {
+          res.status(422).json(e);
+        } else {
+          res.status(422).json({ message: e.message });
+        }
+      });
+    if (!payloadValue) {
+      return;
+    }
+
+    const user = await saveUser(
+      new UserModel({
+        ...payloadValue,
+        isRegistered: true,
+      })
+    );
+
+    const token = jwt.sign(
+      { id: user._id?.toString() },
+      process.env.JWT_SECRET as Secret
+    );
+    user.token = token;
+    await updateUser(new UserModel(user));
+    const newUser = await getPopulatedUserById(user._id);
+    return res.status(200).set({ "x-auth-token": token }).json(newUser);
+  } catch (error) {
+    console.log("error in register", error);
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const adminUserRegisterController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const payloadValue = await userRegisterSchema
       .validateAsync(req.body)
       .then((value) => {
         return value;
