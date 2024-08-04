@@ -57,14 +57,6 @@ function getLastFriday(date) {
   return lastDayOfMonth;
 }
 
-export const calculateTotalDays = (date) => {
-  let { lastFridayPreviousMonth, lastThursdayCurrentMonth, month } =
-    calculateMonth(date);
-  const totalDays =
-    lastThursdayCurrentMonth.diff(lastFridayPreviousMonth, "days") + 1;
-  return { totalDays, month };
-};
-
 function getLastThursday(date) {
   let lastDayOfMonth = moment(date).endOf("month");
 
@@ -75,6 +67,16 @@ function getLastThursday(date) {
   return lastDayOfMonth;
 }
 
+export const calculateTotalDays = (date) => {
+  let { lastFridayPreviousMonth, lastThursdayCurrentMonth, month } =
+    calculateMonth(date);
+  console.log(lastFridayPreviousMonth, lastThursdayCurrentMonth, month);
+
+  const totalDays =
+    lastThursdayCurrentMonth.diff(lastFridayPreviousMonth, "days") + 1;
+  return { totalDays, month };
+};
+
 export const calculateROI = (capital, pnl) => {
   let ROI = (pnl / capital) * 100;
   return ROI;
@@ -84,14 +86,40 @@ export const overallPNL = (pnlList) => {
   const today = moment().startOf("day");
   const startOfWeek = moment().startOf("week");
   const startOfMonth = moment().startOf("month");
-
   let totals = pnlList.reduce(
-    (acc, item) => {
-      // Parse the item.date with the known format
+    (acc, item, index) => {
       const itemDate = moment(item.date, "DD/MM/YYYY");
-
       acc.totalPnlValue += item.pnlValue;
       acc.totalROI += item.ROI;
+
+      // Update latest profit/loss
+      if (item.pnlValue >= 0) {
+        acc.latestProfit = item.pnlValue;
+      } else {
+        acc.latestLoss = item.pnlValue;
+      }
+
+      // Update latest max profit and reset maxLossAfterLatestMaxProfit
+      if (item.pnlValue > acc.latestMaxProfit) {
+        acc.latestMaxProfit = item.pnlValue;
+        acc.maxLossAfterLatestMaxProfit = 0;
+      }
+
+      // Update max loss after latest max profit
+      if (item.pnlValue < acc.maxLossAfterLatestMaxProfit) {
+        acc.maxLossAfterLatestMaxProfit = item.pnlValue;
+      }
+
+      // Calculate DD
+      acc.DD = acc.latestMaxProfit - acc.latestLoss;
+
+      // Calculate MDD
+      const currentMDD = acc.latestMaxProfit - acc.maxLossAfterLatestMaxProfit;
+      if (currentMDD > acc.MDD) {
+        acc.MDD = currentMDD;
+      }
+
+      // Other calculations remain the same
       if (item.pnlValue > 0) {
         acc.winDays++;
         acc.totalWinProfit += item.pnlValue;
@@ -103,7 +131,6 @@ export const overallPNL = (pnlList) => {
         if (item.pnlValue > acc.maxProfit) {
           acc.maxProfit = item.pnlValue;
         }
-        acc.latestProfit = item.pnlValue;
       } else {
         acc.lossDays++;
         acc.totalLoss += item.pnlValue;
@@ -115,19 +142,16 @@ export const overallPNL = (pnlList) => {
         if (item.pnlValue < acc.maxLoss) {
           acc.maxLoss = item.pnlValue;
         }
-        acc.latestLoss = item.pnlValue;
       }
 
       // Calculate today's PnL
       if (itemDate.isSame(today, "day")) {
         acc.todayPNL += item.pnlValue;
       }
-
       // Calculate current week's PnL
       if (itemDate.isSameOrAfter(startOfWeek)) {
         acc.currentWeekPNL += item.pnlValue;
       }
-
       // Calculate current month's PnL
       if (itemDate.isSameOrAfter(startOfMonth)) {
         acc.currentMonthPNL += item.pnlValue;
@@ -143,7 +167,7 @@ export const overallPNL = (pnlList) => {
       totalWinProfit: 0,
       totalLoss: 0,
       maxProfit: -Infinity,
-      maxLoss: Infinity,
+      maxLoss: 0,
       currentWinStreak: 0,
       maxWinStreak: 0,
       currentLossStreak: 0,
@@ -153,6 +177,10 @@ export const overallPNL = (pnlList) => {
       todayPNL: 0,
       currentWeekPNL: 0,
       currentMonthPNL: 0,
+      latestMaxProfit: 0,
+      maxLossAfterLatestMaxProfit: 0,
+      MDD: 0,
+      DD: 0,
     }
   );
 

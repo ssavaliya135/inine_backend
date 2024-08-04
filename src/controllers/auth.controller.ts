@@ -13,7 +13,6 @@ import {
 
 export const registerSchema = Joi.object({
   firstName: Joi.string().required(),
-  lastName: Joi.string().optional(),
   email: Joi.string()
     .email()
     .required()

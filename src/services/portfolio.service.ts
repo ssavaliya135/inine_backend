@@ -31,7 +31,7 @@ export const getPortfolioByUserId = async (userId: string) => {
   })
     .lean()
     .sort({ createdAt: -1 })
-    .select("month totalCapital pnlList totalROI");
+    .select("month totalCapital totalROI");
   return portfolio ? portfolio : [];
 };
 

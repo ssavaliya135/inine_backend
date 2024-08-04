@@ -5,6 +5,7 @@ export interface IAmount extends Document {
   month: string;
   amount?: number;
   paymentMode?: string;
+  amountType?: string;
   userId?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
@@ -21,6 +22,10 @@ const amount = new Schema<IAmount>(
       default: 0,
     },
     paymentMode: {
+      type: String,
+      default: "",
+    },
+    amountType: {
       type: String,
       default: "",
     },

@@ -150,8 +150,6 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
       payloadValue.pnl = payloadValue.pnl - payloadValue.tax;
     }
     let { month } = calculateMonth(payloadValue.date);
-    console.log(month, "&&&&");
-
     let portfolio = await getPortfolioByUserIdAndMonth(userId, month);
     const itemDate = moment(payloadValue.date, "DD/MM/YYYY");
     const dayFullName = itemDate.format("dddd");
@@ -180,6 +178,9 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
       todayPNL,
       currentWeekPNL,
       currentMonthPNL,
+      maxLatestProfit,
+      MDD,
+      DD,
     } = overallPNL(portfolio.pnlList);
     portfolio.totalPnlValue = totalPnlValue;
     portfolio.tax = payloadValue.tax;
@@ -195,8 +196,7 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     portfolio.todayPNL = todayPNL;
     portfolio.currentWeekPNL = currentWeekPNL;
     portfolio.currentMonthPNL = currentMonthPNL;
-    portfolio.currentDD = latestLoss - latestProfit;
-    let MDD = maxLoss - maxProfit;
+    portfolio.currentDD = DD;
     portfolio.MDD = MDD;
     portfolio.MDDRatio = (MDD / portfolio.totalCapital) * 100;
     portfolio.avgProfit = winDays ? totalWinProfit / winDays : 0;
@@ -205,8 +205,16 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
     portfolio.winRation = pnlDays ? (winDays / pnlDays) * 100 : 0;
     portfolio.lossRation = pnlDays ? (lossDays / pnlDays) * 100 : 0;
     portfolio.riskReward = portfolio.avgProfit / portfolio.avgLoss;
+    console.log(
+      portfolio.winRation,
+      portfolio.avgProfit,
+      portfolio.lossRation,
+      portfolio.avgLoss,
+      "???????"
+    );
+
     portfolio.expectancy =
-      portfolio.winRation * portfolio.avgProfit -
+      portfolio.winRation * portfolio.avgProfit +
       portfolio.lossRation * portfolio.avgLoss;
     let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
     res.status(200).json(updatedPortfolio);
@@ -225,15 +233,14 @@ export const amountAdminController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
+
     let userId = req.params.userId;
     if (!userId) {
-      res.status(403).send({ message: "Invalid userId provided" });
+      return res.status(403).send({ message: "Invalid userId provided" });
     }
+
     const payloadValue = await depositAmountSchema
       .validateAsync(req.body)
-      .then((value) => {
-        return value;
-      })
       .catch((e) => {
         console.log(e);
         if (isError(e)) {
@@ -246,21 +253,45 @@ export const amountAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
+
     let { totalDays, month } = calculateTotalDays(payloadValue.date);
     payloadValue.userId = userId;
-    payloadValue.amount = payloadValue.amount;
     payloadValue.month = month;
-    payloadValue.paymentMode = payloadValue.paymentMode;
-    let amount = await saveAmount(new AmountModel(payloadValue));
-    await savePortfolio(
-      new PortfolioModel({
-        userId: userId,
-        totalCapital: payloadValue.amount,
-        month,
-        totalDays,
-      })
-    );
-    return res.status(200).json(amount);
+
+    // Determine if the amount is a deposit or a withdrawal
+    const isDeposit = payloadValue.amount > 0;
+
+    // Check if an entry for the user and month already exists
+    let existingAmountEntry = await AmountModel.findOne({
+      userId,
+      month,
+      paymentMode: payloadValue.paymentMode,
+      amountType: isDeposit ? "deposit" : "withdrawal",
+    });
+
+    if (existingAmountEntry) {
+      return res
+        .status(500)
+        .send({ message: "You already have a transaction" });
+    } else {
+      // Create a new entry
+      payloadValue.amountType = isDeposit ? "deposit" : "withdrawal";
+      await saveAmount(new AmountModel(payloadValue));
+    }
+
+    if (isDeposit) {
+      // Save to the portfolio
+      await savePortfolio(
+        new PortfolioModel({
+          userId: userId,
+          totalCapital: payloadValue.amount,
+          month,
+          totalDays,
+        })
+      );
+    }
+
+    return res.status(200).json({ message: "Amount processed successfully" });
   } catch (error) {
     console.log(
       "error",

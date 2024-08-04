@@ -1,6 +1,6 @@
 import { Response } from "express";
 import Joi, { isError } from "joi";
-import { calculateTotalDays } from "../helper/calculation";
+import { calculateMonth, calculateTotalDays } from "../helper/calculation";
 import { UserModel } from "../models/user.model";
 import { Request } from "../request";
 import {
@@ -32,7 +32,6 @@ export const profileUpdateSchema = Joi.object().keys({
   //   .allow(null),
   email: Joi.string().email().optional(),
   firstName: Joi.string().optional().allow(""),
-  lastName: Joi.string().optional().allow(""),
 });
 
 export const getPortfolioSchema = Joi.object().keys({
@@ -112,7 +111,8 @@ export const getUserByIdController = async (req: Request, res: Response) => {
       return res.status(403).json("unauthorized request");
     }
     const user = await getPopulatedUserById(authUser._id);
-    return res.status(200).json(user);
+    let { month } = calculateMonth(new Date());
+    return res.status(200).json({ ...user, month });
   } catch (error) {
     console.log(
       "error",
@@ -207,6 +207,45 @@ export const getMonthController = async (req: Request, res: Response) => {
     console.log(
       "error",
       "error at getMonthController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getCurrentWeekPNLController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+
+    let { month } = calculateMonth(new Date());
+    let portfolio = await getPortfolioByUserIdAndMonth(authUser._id, month);
+
+    // Get the current date
+    const currentDate = moment();
+
+    // Filter pnlList to only include current week's data
+    const currentWeekPNL = portfolio.pnlList.filter((item) => {
+      const itemDate = moment(item.date, "DD/MM/YYYY");
+      return itemDate.isSame(currentDate, "week");
+    });
+
+    // Replace the original pnlList with the filtered list
+    portfolio.pnlList = currentWeekPNL;
+
+    return res.status(200).json(currentWeekPNL);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getCurrentWeekPNLController#################### ",
       error
     );
     return res.status(500).json({

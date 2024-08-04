@@ -3,7 +3,6 @@ import { Document, Schema, Types, model } from "mongoose";
 export interface IUser extends Document {
   _id: string;
   firstName: string;
-  lastName: string;
   FCMToken: string[];
   userType: string;
   password: string;
@@ -18,10 +17,6 @@ export interface IUser extends Document {
 const user = new Schema<IUser>(
   {
     firstName: {
-      type: String,
-      required: false,
-    },
-    lastName: {
       type: String,
       required: false,
     },
