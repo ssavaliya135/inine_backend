@@ -12,7 +12,6 @@ import { validateAuthIdToken } from "../middleware/validateAuthIdToken";
 const userRoute: Router = express.Router();
 
 userRoute.patch("/profileUpdate", profileUpdateUserController);
-userRoute.get("/", validateAuthIdToken, getUserByIdController);
 userRoute.get("/getAmount", validateAuthIdToken, getAmountController);
 userRoute.post("/getPortfolio", validateAuthIdToken, getPortfolioController);
 userRoute.get("/getMonth", validateAuthIdToken, getMonthController);
@@ -21,5 +20,6 @@ userRoute.get(
   validateAuthIdToken,
   getCurrentWeekPNLController
 );
+userRoute.get("/", validateAuthIdToken, getUserByIdController);
 
 export default userRoute;
