@@ -28,7 +28,7 @@ export const getAmountByUserIdAndMonth = async (
 export const getAmountByUserId = async (userId: string) => {
   const amount = await AmountModel.find({
     userId,
-  });
+  }).sort({ createdAt: -1 });
   return amount ? amount : [];
 };
 

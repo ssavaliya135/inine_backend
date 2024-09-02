@@ -6,6 +6,7 @@ import {
   getPortfolioController,
   getMonthController,
   getCurrentWeekPNLController,
+  deleteAccountController,
 } from "../controllers/user.controller";
 import { validateAuthIdToken } from "../middleware/validateAuthIdToken";
 
@@ -21,5 +22,10 @@ userRoute.get(
   getCurrentWeekPNLController
 );
 userRoute.get("/", validateAuthIdToken, getUserByIdController);
+userRoute.delete(
+  "/deleteAccount",
+  validateAuthIdToken,
+  deleteAccountController
+);
 
 export default userRoute;

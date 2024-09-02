@@ -5,9 +5,10 @@ export const deleteUser = async (_id: string) => {
 };
 
 export const getAllUser = async () => {
-  const user = await UserModel.find({ isRegistered: true }).select(
-    "firstName phoneNumber"
-  );
+  const user = await UserModel.find({
+    isRegistered: true,
+    userType: { $ne: "ADMIN" },
+  }).select("firstName phoneNumber");
   // return user ? user.map((item) => new User(item)) : null;
   return user;
 };
@@ -38,11 +39,31 @@ export const getUserByPhoneNumber = async (phoneNumber: string) => {
   return user ? user : [];
 };
 
+export const getUserByPhoneNumberAndEmail = async (
+  phoneNumber: string,
+  email: string
+) => {
+  const user = await UserModel.find({
+    phoneNumber: { $regex: new RegExp(`^${phoneNumber}`) },
+    email,
+  });
+  return user ? user : [];
+};
+
 export const getUserByPhoneNumberForSchema = async (phoneNumber: string) => {
   const user = await UserModel.find({
     phoneNumber,
+    isRegistered: true,
   });
   return user ? user : [];
+};
+
+export const getNotRegisterUserByPhoneNumber = async (phoneNumber: string) => {
+  const user = await UserModel.findOne({
+    phoneNumber,
+    isRegistered: false,
+  });
+  return user;
 };
 
 export const getUserByName = async (firstName: string) => {

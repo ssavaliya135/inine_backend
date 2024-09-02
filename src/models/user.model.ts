@@ -10,6 +10,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   isRegistered: boolean;
+  isDeleted: boolean;
   email: string;
   token: string;
 }
@@ -38,6 +39,10 @@ const user = new Schema<IUser>(
       default: "",
     },
     isRegistered: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
       type: Boolean,
       default: false,
     },

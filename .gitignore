@@ -6,4 +6,4 @@ exports/
 .DS_Store
 .env
 .vscode
-# credentials/
+credentials/

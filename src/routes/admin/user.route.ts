@@ -10,7 +10,7 @@ import {
 
 const adminUserRoute: Router = express.Router();
 
-adminUserRoute.get("/sendNotification", sendNotificationController);
+adminUserRoute.post("/sendNotification", sendNotificationController);
 adminUserRoute.get("/searchUserByPhn/:phnNumber", searchUserAdminController);
 adminUserRoute.get(
   "/searchUserByName/:firstName",

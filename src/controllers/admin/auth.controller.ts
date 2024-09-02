@@ -3,13 +3,31 @@ import { Request } from "../../request";
 import Joi, { isError } from "joi";
 import jwt, { Secret } from "jsonwebtoken";
 import {
+  getNotRegisterUserByPhoneNumber,
   getPopulatedUserById,
   getUserByEmail,
   getUserByPhoneNumber,
+  getUserByPhoneNumberForSchema,
   saveUser,
   updateUser,
 } from "../../services/user.service";
 import { IUser, UserModel } from "../../models/user.model";
+
+// export const loginSchema = Joi.object({
+//   email: Joi.string()
+//     .email()
+//     .required()
+//     .external(async (v: string) => {
+//       const user: IUser = await getUserByEmail(v);
+//       if (!user) {
+//         throw new Error(
+//           "This email address is not registered. Please use a registered email address."
+//         );
+//       }
+//       return user;
+//     }),
+//   password: Joi.string().required(),
+// });
 
 export const loginSchema = Joi.object({
   email: Joi.string()
@@ -18,8 +36,17 @@ export const loginSchema = Joi.object({
     .external(async (v: string) => {
       const user: IUser = await getUserByEmail(v);
       if (!user) {
-        throw new Error(
-          "This email address is not registered. Please use a registered email address."
+        throw new Joi.ValidationError(
+          "This email address is not registered. Please use a registered email address.",
+          [
+            {
+              message:
+                "This email address is not registered. Please use a registered email address.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return user;
@@ -36,8 +63,17 @@ const registerSchema = Joi.object({
     .external(async (v: string) => {
       const user: IUser = await getUserByEmail(v);
       if (user) {
-        throw new Error(
-          "This email address is already associated with another account. Please use a different email address."
+        throw new Joi.ValidationError(
+          "This email address is already associated with another account. Please use a different email address.",
+          [
+            {
+              message:
+                "This email address is already associated with another account. Please use a different email address.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return v;
@@ -47,8 +83,17 @@ const registerSchema = Joi.object({
     .external(async (v: string) => {
       const user = await getUserByPhoneNumber(v);
       if (user.length > 0) {
-        throw new Error(
-          "This phoneNumber  is already associated with another account. Please use a different phoneNumber."
+        throw new Joi.ValidationError(
+          "This phoneNumber  is already associated with another account. Please use a different phoneNumber.",
+          [
+            {
+              message:
+                "This phoneNumber  is already associated with another account. Please use a different phoneNumber.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return v;
@@ -67,7 +112,9 @@ const userRegisterSchema = Joi.object({
   phoneNumber: Joi.string()
     .required()
     .external(async (v: string) => {
-      const user = await getUserByPhoneNumber(v);
+      const user = await getUserByPhoneNumberForSchema(v);
+      console.log(user, "::::::::::");
+
       if (user.length > 0) {
         throw new Error(
           "This phoneNumber  is already associated with another account. Please use a different phoneNumber."
@@ -86,11 +133,7 @@ export const adminRegisterController = async (req: Request, res: Response) => {
       })
       .catch((e) => {
         console.log(e);
-        if (isError(e)) {
-          res.status(422).json(e);
-        } else {
-          res.status(422).json({ message: e.message });
-        }
+        res.status(422).json({ message: e.details[0].message });
       });
     if (!payloadValue) {
       return;
@@ -132,31 +175,25 @@ export const adminUserRegisterController = async (
       })
       .catch((e) => {
         console.log(e);
-        if (isError(e)) {
-          res.status(422).json(e);
-        } else {
-          res.status(422).json({ message: e.message });
-        }
+        res.status(422).json({ message: e.details[0].message });
       });
     if (!payloadValue) {
       return;
     }
-
-    const user = await saveUser(
-      new UserModel({
-        ...payloadValue,
-        isRegistered: true,
-      })
-    );
-
-    const token = jwt.sign(
-      { id: user._id?.toString() },
-      process.env.JWT_SECRET as Secret
-    );
-    user.token = token;
-    await updateUser(new UserModel(user));
-    const newUser = await getPopulatedUserById(user._id);
-    return res.status(200).set({ "x-auth-token": token }).json(newUser);
+    let user = await getNotRegisterUserByPhoneNumber(payloadValue.phoneNumber);
+    if (user) {
+      await updateUser(
+        new UserModel({ ...user.toObject(), isRegistered: true })
+      );
+    } else {
+      await saveUser(
+        new UserModel({
+          ...payloadValue,
+          isRegistered: true,
+        })
+      );
+    }
+    return res.status(200).json({ message: "phoneNumer register sucessfull" });
   } catch (error) {
     console.log("error in register", error);
     return res.status(500).json({
@@ -175,11 +212,11 @@ export const adminLoginController = async (req: Request, res: Response) => {
       })
       .catch((e) => {
         console.log(e);
-        if (isError(e)) {
-          res.status(422).json(e);
-        } else {
-          res.status(422).json({ message: e.message });
-        }
+        // if (isError(e)) {
+        res.status(422).json({ message: e.details[0].message });
+        // } else {
+        // res.status(422).json({ message: e.message });
+        // }
       });
 
     if (!payloadValue) {

@@ -4,6 +4,7 @@ import jwt, { Secret } from "jsonwebtoken";
 import { IUser, UserModel } from "../models/user.model";
 import { Request } from "../request";
 import {
+  getNotRegisterUserByPhoneNumber,
   getPopulatedUserById,
   getUserByEmail,
   getUserByPhoneNumber,
@@ -19,22 +20,41 @@ export const registerSchema = Joi.object({
     .external(async (v: string) => {
       const user: IUser = await getUserByEmail(v);
       if (user) {
-        throw new Error(
-          "This email address is already associated with another account. Please use a different email address."
+        throw new Joi.ValidationError(
+          "This email address is already associated with another account. Please use a different email address.",
+          [
+            {
+              message:
+                "This email address is already associated with another account. Please use a different email address.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return v;
     }),
-  phoneNumber: Joi.string().required(),
-  // .external(async (v: string) => {
-  //   const user = await getUserByPhoneNumber(v);
-  //   if (user.length == 0) {
-  //     throw new Error(
-  //       "This phoneNumber  is not registered. Please try again"
-  //     );
-  //   }
-  //   return v;
-  // }),
+  phoneNumber: Joi.string()
+    .required()
+    .external(async (v: string) => {
+      const user = await getNotRegisterUserByPhoneNumber(v);
+      if (user) {
+        throw new Joi.ValidationError(
+          "This phoneNumber  is already registered. Please try again",
+          [
+            {
+              message:
+                "This phoneNumber  is already registered. Please try again",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
+        );
+      }
+      return v;
+    }),
   password: Joi.string()
     .required()
     .min(6)
@@ -46,13 +66,23 @@ export const registerSchema = Joi.object({
 
 export const loginSchema = Joi.object({
   password: Joi.string().required(),
+  FCMToken: Joi.string().required(),
   phoneNumber: Joi.string()
     .required()
     .external(async (v: string) => {
       const user = await getUserByPhoneNumber(v);
       if (user.length == 0) {
-        throw new Error(
-          "This phoneNumber is not registered. Please use a registered phoneNumber."
+        throw new Joi.ValidationError(
+          "This phone number is not registered. Please use a registered phone number.",
+          [
+            {
+              message:
+                "This phone number is not registered. Please use a registered phone number.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return user[0];
@@ -66,8 +96,17 @@ export const duplicateSchema = Joi.object({
     .external(async (v: string) => {
       const user: IUser = (await getUserByEmail(v)) as IUser;
       if (user) {
-        throw new Error(
-          "This email address is already associated with another account. Please use a different email address."
+        throw new Joi.ValidationError(
+          "This email address is already associated with another account. Please use a different email address.",
+          [
+            {
+              message:
+                "This email address is already associated with another account. Please use a different email address.",
+              path: ["email"],
+              type: "any.custom",
+            },
+          ],
+          v
         );
       }
       return v;
@@ -83,39 +122,53 @@ export const registerController = async (req: Request, res: Response) => {
       })
       .catch((e) => {
         console.log(e);
-        res.status(422).json({ message: e.message });
+        res.status(422).json({ message: e.details[0].message });
       });
 
     if (!payloadValue) {
       return;
     }
-    let isRegistered = false;
-    if (payloadValue.phoneNumber) {
-      const guestUser = await getUserByPhoneNumber(payloadValue.phoneNumber);
-      if (guestUser.length > 0) {
-        isRegistered = true;
-        // return res.status(422).json({
-        //   message: "please register your device",
-        // });
+    let isRegistered = true;
+    const guestUser = await getUserByPhoneNumber(payloadValue.phoneNumber);
+
+    let token;
+    if (guestUser.length == 0) {
+      isRegistered = false;
+
+      let user = await saveUser(
+        new UserModel({ ...payloadValue, isRegistered })
+      );
+      token = jwt.sign(
+        { id: user._id?.toString() },
+        process.env.JWT_SECRET as Secret
+      );
+      user.token = token;
+      await updateUser(new UserModel(user));
+      return res.status(200).set({ "x-auth-token": token }).json(user);
+    } else {
+      console.log("elseeeeeeeeeeeeee");
+
+      if (guestUser[0].email !== "" && guestUser[0].isDeleted == false) {
+        console.log("ifffffffffffff");
+
+        return res
+          .status(400)
+          .json({ message: "This phone number is already registered." });
       }
+      token = jwt.sign(
+        { id: guestUser[0]._id?.toString() },
+        process.env.JWT_SECRET as Secret
+      );
+      guestUser[0].firstName = payloadValue.firstName;
+      guestUser[0].isRegistered = isRegistered;
+      guestUser[0].FCMToken = [payloadValue.FCMToken];
+      guestUser[0].token = token;
+      guestUser[0].email = payloadValue.email;
+      guestUser[0].password = payloadValue.password;
+      await updateUser(new UserModel(guestUser[0]));
+      const newUser = await getPopulatedUserById(guestUser[0]._id);
+      return res.status(200).set({ "x-auth-token": token }).json(newUser);
     }
-
-    let user = await saveUser(
-      new UserModel({
-        ...payloadValue,
-        isRegistered: isRegistered,
-        FCMToken: [payloadValue.FCMToken],
-      })
-    );
-
-    const token = jwt.sign(
-      { id: user._id?.toString() },
-      process.env.JWT_SECRET as Secret
-    );
-    user.token = token;
-    await updateUser(new UserModel(user));
-    const newUser = await getPopulatedUserById(user._id);
-    return res.status(200).set({ "x-auth-token": token }).json(newUser);
   } catch (error) {
     console.log(error);
     console.log("error", "error in register", error);
@@ -135,19 +188,26 @@ export const loginController = async (req: Request, res: Response) => {
       })
       .catch((e) => {
         console.log(e);
-        res.status(422).json({ message: e.message });
+        res.status(422).json({ message: e.details[0].message });
       });
 
     if (!payloadValue) {
       return;
     }
     const user = payloadValue.phoneNumber;
+    if (user.password == "") {
+      return res.status(400).json({ message: "Please register an account." });
+    }
     const password = jwt.verify(
       user.password,
       process.env.JWT_SECRET as Secret
     );
     if (password !== payloadValue.password) {
       return res.status(422).json({ message: "Password is incorrect" });
+    }
+    if (user.FCMToken.indexOf(payloadValue.FCMToken) == -1) {
+      user.FCMToken.push(payloadValue.FCMToken);
+      await updateUser(new UserModel(user));
     }
     const populatedUser = await getPopulatedUserById(user._id);
     const token = jwt.sign(

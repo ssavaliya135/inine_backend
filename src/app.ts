@@ -5,6 +5,7 @@ import adminRoute from "./routes/admin.route";
 import authRoute from "./routes/auth.route";
 import userRoute from "./routes/user.route";
 import { firebase } from "./helper/firebase";
+const path = require("path");
 
 const dotenv = require("dotenv");
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(
     exposedHeaders: "x-auth-token",
   })
 );
+app.use("/public", express.static(path.join(__dirname, "public")));
 app.use((req, res, next) => {
   const info = req.method + " " + res.statusCode + " " + req.url;
   console.log("API HIT -------------->", info, "\n|\nv\n|\nv\n");

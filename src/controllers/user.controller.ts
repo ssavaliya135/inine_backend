@@ -126,6 +126,30 @@ export const getUserByIdController = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteAccountController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    const user = await getPopulatedUserById(authUser._id);
+    user.isRegistered = false;
+    user.isDeleted = false;
+    await updateUser(new UserModel(user));
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at deleteAccountController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
 export const getAmountController = async (req: Request, res: Response) => {
   try {
     const authUser = req.authUser;
@@ -176,6 +200,10 @@ export const getPortfolioController = async (req: Request, res: Response) => {
       authUser._id,
       payloadValue.month
     );
+    if (!portfolio) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    portfolio.pnlList = portfolio.pnlList.reverse();
     // let { month } = calculateTotalDays();
     // let amount = await getPortfolioByUserIdAndMonth(authUser._id, month);
     return res.status(200).json(portfolio);
@@ -202,6 +230,7 @@ export const getMonthController = async (req: Request, res: Response) => {
     let portfolio = await getPortfolioByUserId(authUser._id);
     // let { month } = calculateTotalDays();
     // let amount = await getPortfolioByUserIdAndMonth(authUser._id, month);
+    // portfolio.pnlList = portfolio.pnlList.reverse();
     return res.status(200).json(portfolio);
   } catch (error) {
     console.log(
