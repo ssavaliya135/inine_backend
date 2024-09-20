@@ -9,10 +9,12 @@ import {
 } from "../../helper/calculation";
 import { sendNotification } from "../../helper/notification";
 import { AmountModel } from "../../models/amount.model";
-import { PortfolioModel } from "../../models/portfolio.model";
+import { IPortfolio, PortfolioModel } from "../../models/portfolio.model";
 import { Request } from "../../request";
 import { saveAmount } from "../../services/amount.service";
 import {
+  getLastPortfolioByUserId,
+  getPortfolioById,
   getPortfolioByUserIdAndMonth,
   savePortfolio,
   updatePortfolio,
@@ -21,15 +23,67 @@ import {
   getAllUser,
   getAllUserForNotification,
   getPopulatedUserById,
+  getUserById,
   getUserByName,
   getUserByPhoneNumber,
+  updateUser,
 } from "../../services/user.service";
+import { UserModel } from "../../models/user.model";
+import mongoose from "mongoose";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
   tax: Joi.number().optional(),
   date: Joi.string().required(),
   index: Joi.array().required(),
+});
+
+export const addReferralSchema = Joi.object({
+  userId: Joi.string()
+    .required()
+    .external(async (v) => {
+      let user;
+      if (v) {
+        user = await getUserById(v);
+        if (!user) {
+          throw new Joi.ValidationError(
+            "user not found",
+            [
+              {
+                message: "user not found",
+                path: ["userId"],
+                type: "any.custom",
+              },
+            ],
+            v
+          );
+        }
+      }
+      return user;
+    }),
+});
+
+export const updatePNLSchema = Joi.object({
+  profileId: Joi.string()
+    .required()
+    .external(async (v: string) => {
+      const portfolio: IPortfolio = await getPortfolioById(v);
+      if (!portfolio) {
+        throw new Joi.ValidationError(
+          "please provide valid portfolioId",
+          [
+            {
+              message: "please provide valid portfolioId",
+              path: ["profileId"],
+              type: "any.custom",
+            },
+          ],
+          v
+        );
+      }
+      return v;
+    }),
+  pnlList: Joi.array().required(),
 });
 
 export const depositAmountSchema = Joi.object().keys({
@@ -241,6 +295,135 @@ export const addPNLAdminController = async (req: Request, res: Response) => {
   }
 };
 
+export const updatePNLAdminController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request !");
+    }
+    const payloadValue = await updatePNLSchema
+      .validateAsync(req.body)
+      .then((value) => value)
+      .catch((e) => {
+        console.log(e);
+        res.status(422).json({ message: e.message });
+        return null;
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+
+    let portfolio = await getPortfolioById(payloadValue.profileId);
+    if (!portfolio) {
+      return res.status(410).json({ message: "You have to add deposit first" });
+    }
+    portfolio.pnlList = [];
+    for (const pnlItem of payloadValue.pnlList) {
+      // pnlItem.date = moment(pnlItem.date).format("DD/MM/YYYY");
+      pnlItem.date = moment(pnlItem.date, "DD/MM/YYYY").format("DD/MM/YYYY");
+      let existingPnl = portfolio.pnlList.find(
+        (ele) => ele.date === pnlItem.date
+      );
+      if (existingPnl) {
+        return res.status(409).json({
+          message: `PNL for date ${pnlItem.date} already exists in the portfolio`,
+        });
+      }
+      console.log(pnlItem.date, ">>>>>>>>>>>");
+
+      const itemDate = moment(pnlItem.date, "DD/MM/YYYY");
+      console.log(itemDate, "????????????");
+      const dayFullName = itemDate.format("dddd");
+
+      let portfolioObj = {
+        ROI: calculateROI(portfolio.totalCapital, pnlItem.pnl),
+        pnlValue: pnlItem.pnl,
+        cumulativePNL: portfolio.totalPnlValue + pnlItem.pnl,
+        date: pnlItem.date,
+        index: pnlItem.index,
+        day: dayFullName,
+      };
+
+      portfolio.pnlList.push(portfolioObj);
+      portfolio.totalPnlValue += pnlItem.pnl;
+      portfolio.tax += pnlItem.tax || 0;
+
+      let {
+        totalPnlValue,
+        totalROI,
+        winDays,
+        lossDays,
+        totalWinProfit,
+        totalLoss,
+        maxProfit,
+        maxLoss,
+        maxWinStreak,
+        maxLossStreak,
+        latestProfit,
+        latestLoss,
+        todayPNL,
+        currentWeekPNL,
+        currentMonthPNL,
+        maxLatestProfit,
+        MDD,
+        DD,
+      } = overallPNL(
+        portfolio.pnlList,
+        portfolio.lastFridayPreviousMonth,
+        portfolio.lastThursdayCurrentMonth,
+        portfolio.MDD
+      );
+
+      // Update portfolio with calculated values
+      Object.assign(portfolio, {
+        totalPnlValue,
+        totalROI,
+        winDays,
+        lossDays,
+        totalWinProfit,
+        totalLoss,
+        maxProfit,
+        maxLoss,
+        maxWinStreak,
+        maxLossStreak,
+        todayPNL,
+        currentWeekPNL,
+        currentMonthPNL: currentMonthPNL - (pnlItem.tax || 0),
+        currentDD: DD,
+        MDD,
+      });
+
+      portfolio.MDDRatio = (MDD / portfolio.totalCapital) * -100;
+      portfolio.avgProfit = winDays ? totalWinProfit / winDays : 0;
+      portfolio.avgLoss = lossDays ? totalLoss / lossDays : 0;
+
+      const pnlDays = portfolio.pnlList.length;
+      portfolio.winRation = pnlDays ? (winDays / pnlDays) * 100 : 0;
+      portfolio.lossRation = pnlDays ? (lossDays / pnlDays) * 100 : 0;
+
+      const riskReward = -portfolio.avgProfit / portfolio.avgLoss;
+      portfolio.riskReward = isFinite(riskReward) ? riskReward : 0;
+
+      portfolio.expectancy =
+        (portfolio.winRation * portfolio.avgProfit) /
+        (portfolio.lossRation * portfolio.avgLoss);
+      portfolio.expectancy = isFinite(portfolio.expectancy)
+        ? portfolio.expectancy
+        : 0;
+    }
+
+    let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
+    res.status(200).json(updatedPortfolio);
+  } catch (error) {
+    console.log("error", "error in updatePNLAdminController", error);
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime",
+      error: JSON.stringify(error),
+    });
+  }
+};
+
 export const amountAdminController = async (req: Request, res: Response) => {
   try {
     const authUser = req.authUser;
@@ -436,6 +619,117 @@ export const sendNotificationController = async (
     console.log(
       "error",
       "error at sendNotificationController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const addReferralController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    const payloadValue = await addReferralSchema
+      .validateAsync(req.body)
+      .then((value) => {
+        return value;
+      })
+      .catch((e) => {
+        console.log(e);
+        res.status(422).json({ message: e.message });
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+    payloadValue.userId.referredBy = new mongoose.Types.ObjectId(user._id);
+    await updateUser(new UserModel(payloadValue.userId));
+    user.referrals.push(new mongoose.Types.ObjectId(payloadValue.userId));
+    await updateUser(new UserModel(user));
+    res.status(200).json("successfull");
+  } catch (error) {
+    console.log(
+      "error",
+      "error at addReferralController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getReferralController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    let populatedUser = await getPopulatedUserById(userId);
+    res.status(200).json(populatedUser.referrals);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getReferralController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getLastPortfolioController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+
+    let portfolio = await getLastPortfolioByUserId(user._id);
+    if (portfolio.length == 0) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    // portfolio[0].pnlList = portfolio[0].pnlList.reverse();
+    return res.status(200).json(portfolio[0]);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getLastPortfolioController#################### ",
       error
     );
     return res.status(500).json({

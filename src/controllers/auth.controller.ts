@@ -46,7 +46,7 @@ export const registerSchema = Joi.object({
             {
               message:
                 "This phoneNumber  is already registered. Please try again",
-              path: ["email"],
+              path: ["phoneNumber"],
               type: "any.custom",
             },
           ],

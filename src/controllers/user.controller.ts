@@ -1,21 +1,22 @@
 import { Response } from "express";
 import Joi, { isError } from "joi";
-import { calculateMonth, calculateTotalDays } from "../helper/calculation";
+import {
+  calculateMonth,
+  calculateWeekdayPNLSummary,
+} from "../helper/calculation";
 import { UserModel } from "../models/user.model";
 import { Request } from "../request";
-import {
-  getAmountByUserId,
-  getAmountByUserIdAndMonth,
-} from "../services/amount.service";
-import {
-  getPopulatedUserById,
-  getUserByEmail,
-  updateUser,
-} from "../services/user.service";
+import { getAmountByUserId } from "../services/amount.service";
 import {
   getPortfolioByUserId,
   getPortfolioByUserIdAndMonth,
 } from "../services/portfolio.service";
+import {
+  getPopulatedUserById,
+  getUserByEmail,
+  getUserById,
+  updateUser,
+} from "../services/user.service";
 const moment = require("moment");
 
 export const profileUpdateSchema = Joi.object().keys({
@@ -179,6 +180,14 @@ export const getPortfolioController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
     const payloadValue = await getPortfolioSchema
       .validateAsync(req.body)
       .then((value) => {
@@ -197,7 +206,7 @@ export const getPortfolioController = async (req: Request, res: Response) => {
       return;
     }
     let portfolio = await getPortfolioByUserIdAndMonth(
-      authUser._id,
+      user._id,
       payloadValue.month
     );
     if (!portfolio) {
@@ -226,8 +235,15 @@ export const getMonthController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-
-    let portfolio = await getPortfolioByUserId(authUser._id);
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    let portfolio = await getPortfolioByUserId(user._id);
     // let { month } = calculateTotalDays();
     // let amount = await getPortfolioByUserIdAndMonth(authUser._id, month);
     // portfolio.pnlList = portfolio.pnlList.reverse();
@@ -275,6 +291,71 @@ export const getCurrentWeekPNLController = async (
     console.log(
       "error",
       "error at getCurrentWeekPNLController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getCurrentWeekTotalPNLController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("invalid userId");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+
+    let { month } = calculateMonth(new Date());
+    let portfolio = await getPortfolioByUserIdAndMonth(user._id, month);
+    const weekdayPNLSummary = calculateWeekdayPNLSummary(portfolio);
+
+    return res.status(200).json(weekdayPNLSummary);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getCurrentWeekTotalPNLController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getReferralController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    let populatedUser = await getPopulatedUserById(userId);
+    res.status(200).json(populatedUser.referrals);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getReferralController#################### ",
       error
     );
     return res.status(500).json({

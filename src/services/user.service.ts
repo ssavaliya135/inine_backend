@@ -27,7 +27,10 @@ export const getAllUserForNotification = async (
 };
 
 export const getPopulatedUserById = async (_id: string) => {
-  const user = await UserModel.findById(_id).select("-password").lean();
+  const user = await UserModel.findById(_id)
+    .select("-password")
+    .lean()
+    .populate({ path: "referrals", select: "firstName phoneNumber" });
   // return new User(omit(user, ["RESETToken"]));
   return user;
 };

@@ -13,6 +13,8 @@ export interface IUser extends Document {
   isDeleted: boolean;
   email: string;
   token: string;
+  referredBy: Types.ObjectId;
+  referrals: Types.ObjectId[];
 }
 
 const user = new Schema<IUser>(
@@ -54,6 +56,18 @@ const user = new Schema<IUser>(
       type: String,
       default: "",
     },
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "users",
+      default: null,
+    },
+    referrals: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "users",
+        default: null,
+      },
+    ],
   },
   { timestamps: true }
 );

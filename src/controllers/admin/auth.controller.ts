@@ -6,6 +6,7 @@ import {
   getNotRegisterUserByPhoneNumber,
   getPopulatedUserById,
   getUserByEmail,
+  getUserById,
   getUserByPhoneNumber,
   getUserByPhoneNumberForSchema,
   saveUser,
@@ -122,6 +123,28 @@ const userRegisterSchema = Joi.object({
       }
       return v;
     }),
+  userId: Joi.string()
+    .optional()
+    .external(async (v) => {
+      let user;
+      if (v) {
+        user = await getUserById(v);
+        if (!user) {
+          throw new Joi.ValidationError(
+            "user not found",
+            [
+              {
+                message: "user not found",
+                path: ["userId"],
+                type: "any.custom",
+              },
+            ],
+            v
+          );
+        }
+      }
+      return user;
+    }),
 });
 
 export const adminRegisterController = async (req: Request, res: Response) => {
@@ -182,16 +205,26 @@ export const adminUserRegisterController = async (
     }
     let user = await getNotRegisterUserByPhoneNumber(payloadValue.phoneNumber);
     if (user) {
+      if (payloadValue.userId) {
+        user.referredBy = payloadValue.userId._id;
+      }
       await updateUser(
         new UserModel({ ...user.toObject(), isRegistered: true })
       );
     } else {
-      await saveUser(
+      if (payloadValue.userId) {
+        payloadValue.referredBy = payloadValue.userId._id;
+      }
+      user = await saveUser(
         new UserModel({
           ...payloadValue,
           isRegistered: true,
         })
       );
+    }
+    if (payloadValue.userId) {
+      payloadValue.userId.referrals.push(user._id);
+      await updateUser(new UserModel(payloadValue.userId));
     }
     return res.status(200).json({ message: "phoneNumer register sucessfull" });
   } catch (error) {

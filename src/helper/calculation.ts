@@ -887,3 +887,66 @@ export const overallPNL = (
 
 //   return totals;
 // };
+
+// export const calculateWeekdayPNLSummary = (portfolio) => {
+//   const weekdays = [
+//     "Monday",
+//     "Tuesday",
+//     "Wednesday",
+//     "Thursday",
+//     "Friday",
+//     "Saturday",
+//     "Sunday",
+//   ];
+//   const weekdayPNLMap = new Map<string, number>();
+
+//   // Initialize the map with all weekdays set to 0
+//   weekdays.forEach((day) => weekdayPNLMap.set(day, 0));
+
+//   // Sum up the PNL values for each weekday
+//   portfolio.pnlList.forEach((pnl) => {
+//     const currentTotal = weekdayPNLMap.get(pnl.day) || 0;
+//     weekdayPNLMap.set(pnl.day, currentTotal + pnl.pnlValue);
+//   });
+
+//   // Convert the map to the desired output format
+//   const result = weekdays.map((day) => ({
+//     day,
+//     totalPnl: weekdayPNLMap.get(day) || 0,
+//   }));
+
+//   return result;
+// };
+
+const DEFAULT_WEEKDAY_SUMMARY = [
+  { day: "Monday", totalPnl: 0 },
+  { day: "Tuesday", totalPnl: 0 },
+  { day: "Wednesday", totalPnl: 0 },
+  { day: "Thursday", totalPnl: 0 },
+  { day: "Friday", totalPnl: 0 },
+  { day: "Saturday", totalPnl: 0 },
+  { day: "Sunday", totalPnl: 0 },
+];
+
+export const calculateWeekdayPNLSummary = (portfolio: any) => {
+  if (!portfolio || !portfolio.pnlList || portfolio.pnlList.length === 0) {
+    return DEFAULT_WEEKDAY_SUMMARY;
+  }
+
+  const weekdayPNLMap = new Map<string, number>();
+
+  // Initialize the map with all weekdays set to 0
+  DEFAULT_WEEKDAY_SUMMARY.forEach(({ day }) => weekdayPNLMap.set(day, 0));
+
+  // Sum up the PNL values for each weekday
+  portfolio.pnlList.forEach((pnl: any) => {
+    const currentTotal = weekdayPNLMap.get(pnl.day) || 0;
+    weekdayPNLMap.set(pnl.day, currentTotal + pnl.pnlValue);
+  });
+
+  // Convert the map to the desired output format
+  return DEFAULT_WEEKDAY_SUMMARY.map(({ day }) => ({
+    day,
+    totalPnl: weekdayPNLMap.get(day) || 0,
+  }));
+};
