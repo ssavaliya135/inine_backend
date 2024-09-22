@@ -13,6 +13,7 @@ import {
 } from "../services/portfolio.service";
 import {
   getPopulatedUserById,
+  getPopulatedUserById1,
   getUserByEmail,
   getUserById,
   updateUser,
@@ -111,7 +112,7 @@ export const getUserByIdController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-    const user = await getPopulatedUserById(authUser._id);
+    const user = await getPopulatedUserById1(authUser._id);
     let { month } = calculateMonth(new Date());
     return res.status(200).json({ ...user, month });
   } catch (error) {

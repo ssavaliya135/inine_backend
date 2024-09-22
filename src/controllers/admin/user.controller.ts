@@ -22,6 +22,7 @@ import {
 import {
   getAllUser,
   getAllUserForNotification,
+  getLeaderUser,
   getPopulatedUserById,
   getUserById,
   getUserByName,
@@ -301,6 +302,8 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request !");
     }
+    console.log(req.body, "^^^^^^^^^^^^^^^^^^^^");
+
     const payloadValue = await updatePNLSchema
       .validateAsync(req.body)
       .then((value) => value)
@@ -313,6 +316,7 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
+    console.log(payloadValue, "??????????????");
 
     let portfolio = await getPortfolioById(payloadValue.profileId);
     if (!portfolio) {
@@ -602,12 +606,23 @@ export const sendNotificationController = async (
             body: body ? body : "",
           },
           data: {
-            title: notificationTitle,
+            // title: notificationTitle,
             // title: title[Math.floor(Math.random() * title.length + 1)],
-            body: body ? body : "",
+            // body: body ? body : "",
             type: "notificationType",
           },
         };
+        //  let notificationObj = {
+        //    tokens: [payloadValue.pushToken],
+        //    notification: {
+        //      title: "Dalle - create art with api",
+        //      body: "🎉 Welcome to Dalle! It's the perfect time to unleash your creativity and bring your ideas to life with text-to-image creation. Start exploring now!",
+        //    },
+        //    data: {
+        //      type: "google Sign-up notification",
+        //    },
+        //  };
+        console.log("::::::", notificationObj, ":::::::::::");
 
         await sendNotification(notificationObj);
       }
@@ -730,6 +745,58 @@ export const getLastPortfolioController = async (
     console.log(
       "error",
       "error at getLastPortfolioController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const addLeaderUserController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+
+    user.isLeader = true;
+    await updateUser(new UserModel(user));
+    return res.status(200).json({ message: "success" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at addLeaderUserController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getLeaderUserController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let users = await getLeaderUser();
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getLeaderUserController#################### ",
       error
     );
     return res.status(500).json({

@@ -10,6 +10,8 @@ import {
   addReferralController,
   getReferralController,
   getLastPortfolioController,
+  addLeaderUserController,
+  getLeaderUserController,
 } from "../../controllers/admin/user.controller";
 
 const adminUserRoute: Router = express.Router();
@@ -26,6 +28,8 @@ adminUserRoute.patch("/updatePNL", updatePNLAdminController);
 adminUserRoute.get("/getLastPortfolio/:userId", getLastPortfolioController);
 adminUserRoute.post("/addReferral/:userId", addReferralController);
 adminUserRoute.get("/getReferral/:userId", getReferralController);
+adminUserRoute.get("/addLeaderUser/:userId", addLeaderUserController);
+adminUserRoute.get("/getLeaderUser", getLeaderUserController);
 adminUserRoute.get("/", getAllUserAdminController);
 
 export default adminUserRoute;

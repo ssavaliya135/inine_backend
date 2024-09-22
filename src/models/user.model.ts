@@ -15,6 +15,7 @@ export interface IUser extends Document {
   token: string;
   referredBy: Types.ObjectId;
   referrals: Types.ObjectId[];
+  isLeader: boolean;
 }
 
 const user = new Schema<IUser>(
@@ -68,6 +69,10 @@ const user = new Schema<IUser>(
         default: null,
       },
     ],
+    isLeader: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

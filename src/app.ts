@@ -1,15 +1,15 @@
 import cors from "cors";
 import express from "express";
 import { connectDb } from "./dbConnections";
-import adminRoute from "./routes/admin.route";
-import authRoute from "./routes/auth.route";
-import userRoute from "./routes/user.route";
 import { firebase } from "./helper/firebase";
-const path = require("path");
-
 const dotenv = require("dotenv");
 dotenv.config();
 firebase();
+import adminRoute from "./routes/admin.route";
+import authRoute from "./routes/auth.route";
+import userRoute from "./routes/user.route";
+const path = require("path");
+
 const app = express();
 const port = process.env.PORT || 3001;
 
