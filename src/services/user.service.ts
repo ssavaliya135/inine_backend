@@ -8,7 +8,19 @@ export const deleteUser = async (_id: string) => {
 export const getAllUser = async () => {
   const user = await UserModel.find({
     isRegistered: true,
+    isDeleted: false,
     userType: { $ne: "ADMIN" },
+  }).select("firstName phoneNumber referrals email");
+  // return user ? user.map((item) => new User(item)) : null;
+  return user;
+};
+
+export const getNormalUser = async () => {
+  const user = await UserModel.find({
+    isRegistered: true,
+    isDeleted: false,
+    userType: { $ne: "ADMIN" },
+    $or: [{ isLeader: false }, { isLeader: { $exists: false } }],
   }).select("firstName phoneNumber referrals email");
   // return user ? user.map((item) => new User(item)) : null;
   return user;
@@ -50,11 +62,18 @@ export const getPopulatedUserById1 = async (_id: string) => {
         token: 1,
         isReferred: {
           $cond: {
-            if: { $gt: [{ $size: "$referrals" }, 0] },
+            if: { $gt: [{ $size: { $ifNull: ["$referrals", []] } }, 0] },
             then: true,
             else: false,
           },
         },
+        // isReferred: {
+        //   $cond: {
+        //     if: { $gt: [{ $size: "$referrals" }, 0] },
+        //     then: true,
+        //     else: false,
+        //   },
+        // },
         // referralsCount: { $size: "$referrals" },
       },
     },
@@ -85,6 +104,7 @@ export const getUserByPhoneNumberForSchema = async (phoneNumber: string) => {
   const user = await UserModel.find({
     phoneNumber,
     isRegistered: true,
+    isDeleted: false,
   });
   return user ? user : [];
 };
@@ -93,6 +113,7 @@ export const getNotRegisterUserByPhoneNumber = async (phoneNumber: string) => {
   const user = await UserModel.findOne({
     phoneNumber,
     isRegistered: false,
+    isDeleted: false,
   });
   return user;
 };

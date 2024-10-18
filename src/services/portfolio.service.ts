@@ -18,12 +18,32 @@ export const getPortfolioByUserIdAndMonth = async (
   userId: string,
   month: string
 ) => {
+  const regexMonth = new RegExp(
+    `^${month
+      .trim()
+      .replace(/\s+/g, "\\s*")
+      .replace(/([.*+?^${}()|[\]\\])/g, "\\$1")}$`,
+    "i"
+  );
+
   const portfolio = await PortfolioModel.findOne({
     userId,
-    month,
+    month: { $regex: regexMonth },
   });
+
   return portfolio ? portfolio : null;
 };
+
+// export const getPortfolioByUserIdAndMonth = async (
+//   userId: string,
+//   month: string
+// ) => {
+//   const portfolio = await PortfolioModel.findOne({
+//     userId,
+//     month,
+//   });
+//   return portfolio ? portfolio : null;
+// };
 
 export const getPortfolioByUserId = async (userId: string) => {
   const portfolio = await PortfolioModel.find({

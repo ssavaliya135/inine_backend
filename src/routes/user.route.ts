@@ -9,6 +9,9 @@ import {
   getCurrentWeekTotalPNLController,
   deleteAccountController,
   getReferralController,
+  forgetPassController,
+  getResetPasswordController,
+  resetPasswordController,
 } from "../controllers/user.controller";
 import { validateAuthIdToken } from "../middleware/validateAuthIdToken";
 
@@ -42,6 +45,17 @@ userRoute.delete(
   "/deleteAccount",
   validateAuthIdToken,
   deleteAccountController
+);
+userRoute.post("/forgetPass", forgetPassController);
+userRoute.get(
+  "/resetPassword/:token",
+  // validateAuthIdToken,
+  getResetPasswordController
+);
+userRoute.post(
+  "/resetPassword/:token",
+  // validateAuthIdToken,
+  resetPasswordController
 );
 
 export default userRoute;

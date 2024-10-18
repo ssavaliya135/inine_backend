@@ -23,6 +23,7 @@ import {
   getAllUser,
   getAllUserForNotification,
   getLeaderUser,
+  getNormalUser,
   getPopulatedUserById,
   getUserById,
   getUserByName,
@@ -31,6 +32,13 @@ import {
 } from "../../services/user.service";
 import { UserModel } from "../../models/user.model";
 import mongoose from "mongoose";
+import {
+  deleteWatchList,
+  getWatchListById,
+  getWatchListByLeaderId,
+  saveWatchList,
+} from "../../services/watchList.service";
+import { WatchListModel } from "../../models/watchList.model";
 
 export const addPNLSchema = Joi.object({
   pnl: Joi.number().required(),
@@ -40,6 +48,31 @@ export const addPNLSchema = Joi.object({
 });
 
 export const addReferralSchema = Joi.object({
+  userId: Joi.string()
+    .required()
+    .external(async (v) => {
+      let user;
+      if (v) {
+        user = await getUserById(v);
+        if (!user) {
+          throw new Joi.ValidationError(
+            "user not found",
+            [
+              {
+                message: "user not found",
+                path: ["userId"],
+                type: "any.custom",
+              },
+            ],
+            v
+          );
+        }
+      }
+      return user;
+    }),
+});
+
+export const addWatchListSchema = Joi.object({
   userId: Joi.string()
     .required()
     .external(async (v) => {
@@ -85,6 +118,7 @@ export const updatePNLSchema = Joi.object({
       return v;
     }),
   pnlList: Joi.array().required(),
+  tax: Joi.number().required(),
 });
 
 export const depositAmountSchema = Joi.object().keys({
@@ -323,6 +357,29 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
       return res.status(410).json({ message: "You have to add deposit first" });
     }
     portfolio.pnlList = [];
+    portfolio.tax = 0;
+    portfolio.totalPnlValue = 0;
+    portfolio.totalROI = 0;
+    portfolio.winDays = 0;
+    portfolio.winRation = 0;
+    portfolio.avgProfit = 0;
+    portfolio.totalWinProfit = 0;
+    portfolio.maxProfit = 0;
+    portfolio.todayPNL = 0;
+    portfolio.currentWeekPNL = 0;
+    portfolio.currentMonthPNL = 0;
+    portfolio.currentDD = 0;
+    portfolio.lossDays = 0;
+    portfolio.lossRation = 0;
+    portfolio.avgLoss = 0;
+    portfolio.totalLoss = 0;
+    portfolio.maxLoss = 0;
+    portfolio.maxWinStreak = 0;
+    portfolio.maxLossStreak = 0;
+    portfolio.MDD = 0;
+    portfolio.MDDRatio = 0;
+    portfolio.riskReward = 0;
+    portfolio.expectancy = 0;
     for (const pnlItem of payloadValue.pnlList) {
       // pnlItem.date = moment(pnlItem.date).format("DD/MM/YYYY");
       pnlItem.date = moment(pnlItem.date, "DD/MM/YYYY").format("DD/MM/YYYY");
@@ -341,17 +398,17 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
       const dayFullName = itemDate.format("dddd");
 
       let portfolioObj = {
-        ROI: calculateROI(portfolio.totalCapital, pnlItem.pnl),
-        pnlValue: pnlItem.pnl,
-        cumulativePNL: portfolio.totalPnlValue + pnlItem.pnl,
+        ROI: calculateROI(portfolio.totalCapital, Number(pnlItem.pnl)),
+        pnlValue: Number(pnlItem.pnl),
+        cumulativePNL: portfolio.totalPnlValue + Number(pnlItem.pnl),
         date: pnlItem.date,
         index: pnlItem.index,
         day: dayFullName,
       };
 
       portfolio.pnlList.push(portfolioObj);
-      portfolio.totalPnlValue += pnlItem.pnl;
-      portfolio.tax += pnlItem.tax || 0;
+      portfolio.totalPnlValue += Number(pnlItem.pnl);
+      portfolio.tax += Number(pnlItem.tax) || 0;
 
       let {
         totalPnlValue,
@@ -393,7 +450,7 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
         maxLossStreak,
         todayPNL,
         currentWeekPNL,
-        currentMonthPNL: currentMonthPNL - (pnlItem.tax || 0),
+        currentMonthPNL: currentMonthPNL - (Number(pnlItem.tax) || 0),
         currentDD: DD,
         MDD,
       });
@@ -416,7 +473,8 @@ export const updatePNLAdminController = async (req: Request, res: Response) => {
         ? portfolio.expectancy
         : 0;
     }
-
+    portfolio.tax = payloadValue.tax;
+    portfolio.currentMonthPNL = portfolio.totalPnlValue - portfolio.tax;
     let updatedPortfolio = await updatePortfolio(new PortfolioModel(portfolio));
     res.status(200).json(updatedPortfolio);
   } catch (error) {
@@ -612,17 +670,6 @@ export const sendNotificationController = async (
             type: "notificationType",
           },
         };
-        //  let notificationObj = {
-        //    tokens: [payloadValue.pushToken],
-        //    notification: {
-        //      title: "Dalle - create art with api",
-        //      body: "🎉 Welcome to Dalle! It's the perfect time to unleash your creativity and bring your ideas to life with text-to-image creation. Start exploring now!",
-        //    },
-        //    data: {
-        //      type: "google Sign-up notification",
-        //    },
-        //  };
-        console.log("::::::", notificationObj, ":::::::::::");
 
         await sendNotification(notificationObj);
       }
@@ -670,15 +717,64 @@ export const addReferralController = async (req: Request, res: Response) => {
     if (!payloadValue) {
       return;
     }
-    payloadValue.userId.referredBy = new mongoose.Types.ObjectId(user._id);
+    payloadValue.userId.referredBy = user._id;
     await updateUser(new UserModel(payloadValue.userId));
-    user.referrals.push(new mongoose.Types.ObjectId(payloadValue.userId));
+    user.referrals.push(payloadValue.userId);
     await updateUser(new UserModel(user));
     res.status(200).json("successfull");
   } catch (error) {
     console.log(
       "error",
       "error at addReferralController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const deleteReferralController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    const payloadValue = await addReferralSchema
+      .validateAsync(req.body)
+      .then((value) => {
+        return value;
+      })
+      .catch((e) => {
+        console.log(e);
+        res.status(422).json({ message: e.message });
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+    payloadValue.userId.referredBy = null;
+    await updateUser(new UserModel(payloadValue.userId));
+    // user.referrals.push(payloadValue.userId);
+    // user.referrals = user.referrals.filter(
+    //   (referral) => referral != payloadValue.userId
+    // );
+    user.referrals.splice(user.referrals.indexOf(payloadValue.userId), 1);
+    await updateUser(new UserModel(user));
+    res.status(200).json("successfull");
+  } catch (error) {
+    console.log(
+      "error",
+      "error at deleteReferralController#################### ",
       error
     );
     return res.status(500).json({
@@ -734,6 +830,11 @@ export const getLastPortfolioController = async (
     if (!user) {
       return res.status(403).json("user not found");
     }
+    let { month } = calculateMonth(new Date());
+    console.log(month, "??????????????????");
+
+    let portfolio1 = await getPortfolioByUserIdAndMonth(user._id, month);
+    console.log(portfolio1, "???????????????surrruuuuuuuuuuuuuu");
 
     let portfolio = await getLastPortfolioByUserId(user._id);
     if (portfolio.length == 0) {
@@ -785,6 +886,40 @@ export const addLeaderUserController = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteLeaderUserController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+
+    user.isLeader = false;
+    await updateUser(new UserModel(user));
+    return res.status(200).json({ message: "success" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at deleteLeaderUserController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
 export const getLeaderUserController = async (req: Request, res: Response) => {
   try {
     const authUser = req.authUser;
@@ -797,6 +932,133 @@ export const getLeaderUserController = async (req: Request, res: Response) => {
     console.log(
       "error",
       "error at getLeaderUserController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const addWatchListController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    const payloadValue = await addWatchListSchema
+      .validateAsync(req.body)
+      .catch((e) => {
+        console.log(e);
+        if (isError(e)) {
+          res.status(422).json(e);
+        } else {
+          res.status(422).json({ message: e.message });
+        }
+      });
+
+    if (!payloadValue) {
+      return;
+    }
+    await saveWatchList(
+      new WatchListModel({ leaderId: userId, userId: payloadValue.userId })
+    );
+    return res.status(200).json({ message: "success" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at addWatchListController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getWatchListController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let user = await getUserById(userId);
+    if (!user) {
+      return res.status(403).json("user not found");
+    }
+    let users = await getWatchListByLeaderId(userId);
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getWatchListController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const deleteWatchListController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let watchListId = req.params.id;
+    if (!watchListId) {
+      return res.status(403).json("unauthorized request");
+    }
+    let watchList = await getWatchListById(watchListId);
+    if (!watchList) {
+      return res.status(403).json("watchList not found");
+    }
+    await deleteWatchList(watchListId);
+    return res.status(200).json({ message: "watchList deleted successfully" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at deleteWatchListController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getUserController = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let users = await getNormalUser();
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getUserController#################### ",
       error
     );
     return res.status(500).json({

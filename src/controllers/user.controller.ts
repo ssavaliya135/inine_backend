@@ -1,5 +1,6 @@
 import { Response } from "express";
 import Joi, { isError } from "joi";
+import jwt, { Secret } from "jsonwebtoken";
 import {
   calculateMonth,
   calculateWeekdayPNLSummary,
@@ -18,6 +19,7 @@ import {
   getUserById,
   updateUser,
 } from "../services/user.service";
+import { sendMail } from "../helper/sendMail";
 const moment = require("moment");
 
 export const profileUpdateSchema = Joi.object().keys({
@@ -136,7 +138,7 @@ export const deleteAccountController = async (req: Request, res: Response) => {
     }
     const user = await getPopulatedUserById(authUser._id);
     user.isRegistered = false;
-    user.isDeleted = false;
+    user.isDeleted = true;
     await updateUser(new UserModel(user));
     return res.status(200).json(user);
   } catch (error) {
@@ -357,6 +359,156 @@ export const getReferralController = async (req: Request, res: Response) => {
     console.log(
       "error",
       "error at getReferralController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const forgetPassController = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    let user = await getUserByEmail(email);
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    // Generate a JWT token for password reset
+    let token = jwt.sign(
+      { id: user._id?.toString() },
+      process.env.JWT_SECRET as Secret
+    );
+
+    // Create a reset password URL
+    // const resetLink = `http://localhost:9000/user/resetPassword/${token}`;
+    const resetLink = `http://3.109.157.3:9000/user/resetPassword/${token}`;
+    await sendMail(
+      email,
+      "Password Reset",
+      `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        .footer {
+            font-size: 12px;
+            color: #888;
+            margin-top: 20px;
+        }
+        .footer a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Password Reset Request</h2>
+        <p>Hello,</p>
+        <p>We received a request to reset the password for your iNiNE account. If you didn't make this request, you can safely ignore this email.</p>
+        <p>Otherwise, you can reset your password by clicking the button below:</p>
+        <p><a href="${resetLink}" class="button">Reset Password</a></p>
+        <p>If the button above doesn't work, you can also copy and paste the following link into your browser:</p>
+        <p><a href="${resetLink}">${resetLink}</a></p>
+        <p>This link will expire in 24 hours.</p>
+        <p>Thank you,<br>The iNiNE Team</p>
+    </div>
+</body>
+</html>
+`
+    );
+    res.status(200).json({ message: "Password reset link sent to your email" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at forgetPassController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const getResetPasswordController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { token } = req.params;
+    jwt.verify(token, process.env.JWT_SECRET as Secret);
+
+    // If the token is valid, render the password reset form
+    res.render("resetPassword", { token });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at getResetPasswordController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+export const resetPasswordController = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    console.log(req.body, ">>>>>>>>>");
+
+    const { password } = req.body;
+    console.log(token, password, "???????????");
+    if (!password || password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters long." });
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as Secret);
+    //@ts-ignore
+    const user = await getUserById(decoded.id);
+    if (!user) {
+      return res.status(400).send("Invalid token");
+    }
+    const passwordHash = jwt.sign(password, process.env.JWT_SECRET as Secret);
+    user.password = passwordHash;
+    await updateUser(new UserModel(user));
+    res.status(200).send({ message: "Password updated successfully" });
+  } catch (error) {
+    console.log(
+      "error",
+      "error at resetPasswordController#################### ",
       error
     );
     return res.status(500).json({
