@@ -23,6 +23,7 @@ const user = new Schema<IUser>(
     firstName: {
       type: String,
       required: false,
+      default: "",
     },
     FCMToken: [
       {

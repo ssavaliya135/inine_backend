@@ -719,7 +719,10 @@ export const addReferralController = async (req: Request, res: Response) => {
     }
     payloadValue.userId.referredBy = user._id;
     await updateUser(new UserModel(payloadValue.userId));
-    user.referrals.push(payloadValue.userId);
+    if (!user.referrals.includes(payloadValue.userId)) {
+      user.referrals.push(payloadValue.userId);
+    }
+    // user.referrals.push(payloadValue.userId);
     await updateUser(new UserModel(user));
     res.status(200).json("successfull");
   } catch (error) {
