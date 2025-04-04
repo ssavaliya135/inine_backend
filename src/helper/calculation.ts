@@ -163,12 +163,19 @@ export const calculateMonth = (date) => {
     lastFridayPreviousMonth = lastFridayCurrentMonth;
     lastThursdayCurrentMonth = lastThursdayOfNextMonth;
     if (currentYear === nextMonthYear) {
-      month = `${currentMonth}-${nextMonth} (${currentYear})`;
+      month = `${nextMonth} (${currentYear})`;
     } else {
-      month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
+      month = `${nextMonth} (${currentYear}-${nextMonthYear
         .toString()
         .slice(2)})`;
     }
+    // if (currentYear === nextMonthYear) {
+    //   month = `${currentMonth}-${nextMonth} (${currentYear})`;
+    // } else {
+    //   month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
+    //     .toString()
+    //     .slice(2)})`;
+    // }
   } else if (
     current.isSameOrBefore(lastThursdayCurrentMonth) ||
     currentDate.isSameOrBefore(lastThursdayCurrentMonth)
@@ -176,24 +183,38 @@ export const calculateMonth = (date) => {
     console.log("!!!!!!!!!!!!!!!!!");
 
     if (currentYear === previousMonthYear) {
-      month = `${previousMonth}-${currentMonth} (${currentYear})`;
+      month = `${currentMonth} (${currentYear})`;
     } else {
-      month = `${previousMonth}-${currentMonth} (${previousMonthYear}-${currentYear
+      month = `${currentMonth} (${previousMonthYear}-${currentYear
         .toString()
         .slice(2)})`;
     }
+    // if (currentYear === previousMonthYear) {
+    //   month = `${previousMonth}-${currentMonth} (${currentYear})`;
+    // } else {
+    //   month = `${previousMonth}-${currentMonth} (${previousMonthYear}-${currentYear
+    //     .toString()
+    //     .slice(2)})`;
+    // }
   } else {
     const nextMonthDate = moment(currentDate).add(1, "month");
     const nextMonth = formatter.format(nextMonthDate.toDate());
     const nextMonthYear = nextMonthDate.year();
 
     if (currentYear === nextMonthYear) {
-      month = `${currentMonth}-${nextMonth} (${currentYear})`;
+      month = `${nextMonth} (${currentYear})`;
     } else {
-      month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
+      month = `${nextMonth} (${currentYear}-${nextMonthYear
         .toString()
         .slice(2)})`;
     }
+    // if (currentYear === nextMonthYear) {
+    //   month = `${currentMonth}-${nextMonth} (${currentYear})`;
+    // } else {
+    //   month = `${currentMonth}-${nextMonth} (${currentYear}-${nextMonthYear
+    //     .toString()
+    //     .slice(2)})`;
+    // }
   }
 
   return {
@@ -447,7 +468,7 @@ export const overallPNL = (
           }
         }
       }
-      console.log(acc.DD, acc.MDD, "%%%%%%%%%%%");
+      // console.log(acc.DD, acc.MDD, "%%%%%%%%%%%");
 
       // Other calculations remain the same
       if (item.pnlValue > 0) {
@@ -496,6 +517,155 @@ export const overallPNL = (
         console.log("@@@@", item.pnlValue);
 
         acc.currentMonthPNL += item.pnlValue;
+        console.log(">>>>>>>>>", acc.currentMonthPNL);
+      }
+
+      return acc;
+    },
+    {
+      totalPnlValue: 0,
+      totalROI: 0,
+      winDays: 0,
+      lossDays: 0,
+      totalWinProfit: 0,
+      totalLoss: 0,
+      maxProfit: -Infinity,
+      maxLoss: 0,
+      currentWinStreak: 0,
+      maxWinStreak: 0,
+      currentLossStreak: 0,
+      maxLossStreak: 0,
+      latestProfit: 0,
+      latestLoss: 0,
+      todayPNL: 0,
+      currentWeekPNL: 0,
+      currentMonthPNL: 0,
+      peakBalance: 0,
+      DD: 0,
+      MDD: 0,
+    }
+  );
+
+  return totals;
+};
+export const overallPNL1 = (
+  pnlList,
+  lastFridayPreviousMonth,
+  lastThursdayCurrentMonth,
+  latestMDD
+) => {
+  console.log("djfehfsf!!!!!!!!!!!!!!!!!!!!!fkjgrj==========", latestMDD);
+
+  const today = moment().startOf("day");
+  const startOfWeek = moment().startOf("week").subtract(1, "day");
+  const endOfWeek = moment().endOf("week");
+  const currentMonthStart = moment(lastFridayPreviousMonth).subtract(2, "day");
+  const currentMonthEnd = moment(lastThursdayCurrentMonth);
+  console.log(currentMonthStart, currentMonthEnd, "??????????????/");
+
+  let totals = pnlList.reduce(
+    (acc, item, index) => {
+      const itemDate = moment(item.date, "DD/MM/YYYY");
+      acc.totalPnlValue += item.pnlValue;
+      acc.totalROI += item.ROI;
+
+      // Update latest profit/loss and peak balance
+      if (item.pnlValue >= 0) {
+        acc.latestProfit = item.pnlValue;
+        acc.peakBalance += item.pnlValue;
+      } else {
+        acc.latestLoss = item.pnlValue;
+      }
+
+      // Calculate DD and MDD
+      if (index === 0) {
+        // For the first PNL value
+        if (item.pnlValue < 0) {
+          acc.DD = item.pnlValue;
+          acc.MDD = item.pnlValue;
+        } else {
+          acc.DD = 0;
+          acc.MDD = 0;
+        }
+      } else {
+        if (item.pnlValue < 0) {
+          console.log("ifffffffffffffff", item.pnlValue);
+
+          // For negative PNL, increase both DD and MDD
+          acc.DD += item.pnlValue;
+          console.log(acc.DD, "dddddddddddddddddddddddd");
+
+          if (acc.DD < latestMDD) {
+            console.log("|||||||||||||||||||||||||");
+
+            acc.MDD = acc.DD;
+            console.log(acc.MDD, "mmmmmmmmmmmmmmdddddddddddd");
+          } else {
+            acc.MDD = latestMDD;
+          }
+        } else {
+          console.log("elseeeeeeeeeeeeeeeeeeeeeeeeeeee", acc.DD, item.pnlValue);
+
+          // For positive PNL, decrease DD but keep MDD unchanged
+          // console.log(acc.DD - item.pnlValue, "#3333333");
+
+          // acc.DD = Math.max(0, Math.abs(item.pnlValue - Math.abs(acc.DD)));
+          // console.log(acc.DD, "111111111111111111");
+          acc.DD += item.pnlValue;
+          if (acc.DD > 0) {
+            acc.DD = 0;
+          }
+        }
+      }
+      // console.log(acc.DD, acc.MDD, "%%%%%%%%%%%");
+
+      // Other calculations remain the same
+      if (item.pnlValue > 0) {
+        acc.winDays++;
+        acc.totalWinProfit += item.pnlValue;
+        acc.currentWinStreak++;
+        acc.currentLossStreak = 0;
+        if (acc.currentWinStreak > acc.maxWinStreak) {
+          acc.maxWinStreak = acc.currentWinStreak;
+        }
+        if (item.pnlValue > acc.maxProfit) {
+          acc.maxProfit = item.pnlValue;
+        }
+      } else {
+        acc.lossDays++;
+        acc.totalLoss += item.pnlValue;
+        acc.currentLossStreak++;
+        acc.currentWinStreak = 0;
+        if (acc.currentLossStreak > acc.maxLossStreak) {
+          acc.maxLossStreak = acc.currentLossStreak;
+        }
+        if (item.pnlValue < acc.maxLoss) {
+          acc.maxLoss = item.pnlValue;
+        }
+      }
+
+      // Calculate today's PnL
+      if (itemDate.isSame(today, "day")) {
+        acc.todayPNL += item.pnlValue;
+      }
+      // Calculate current week's PnL
+      console.log(startOfWeek, ">>>>>>>>>>>", endOfWeek);
+
+      if (itemDate.isAfter(startOfWeek) && itemDate.isBefore(endOfWeek)) {
+        console.log("inside week if condition", acc.currentWeekPNL);
+        acc.currentWeekPNL += item.pnlValue;
+        console.log("inside week if conditionnnnnnnnnnn", acc.currentWeekPNL);
+      }
+      // Calculate current month's PnL
+      if (
+        itemDate.isAfter(currentMonthStart) &&
+        itemDate.isBefore(currentMonthEnd)
+      ) {
+        console.log("inside ifffffff", itemDate);
+        console.log("insidd", acc.currentMonthPNL);
+        console.log("@@@@", item.pnlValue);
+
+        acc.currentMonthPNL = item.pnlValue;
         console.log(">>>>>>>>>", acc.currentMonthPNL);
       }
 

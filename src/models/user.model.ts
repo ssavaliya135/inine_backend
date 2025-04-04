@@ -15,7 +15,10 @@ export interface IUser extends Document {
   token: string;
   referredBy: Types.ObjectId;
   referrals: Types.ObjectId[];
+  groupMembers: Types.ObjectId[];
   isLeader: boolean;
+  isHide: boolean;
+  groupId: Types.ObjectId;
 }
 
 const user = new Schema<IUser>(
@@ -74,6 +77,22 @@ const user = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    isHide: {
+      type: Boolean,
+      default: false,
+    },
+    groupId: {
+      type: Schema.Types.ObjectId,
+      ref: "users",
+      default: null,
+    },
+    groupMembers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "users",
+        default: null,
+      },
+    ],
   },
   { timestamps: true }
 );

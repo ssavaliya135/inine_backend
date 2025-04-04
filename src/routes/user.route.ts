@@ -12,6 +12,7 @@ import {
   forgetPassController,
   getResetPasswordController,
   resetPasswordController,
+  deleteAccountController1,
 } from "../controllers/user.controller";
 import { validateAuthIdToken } from "../middleware/validateAuthIdToken";
 
@@ -44,7 +45,8 @@ userRoute.get("/", validateAuthIdToken, getUserByIdController);
 userRoute.delete(
   "/deleteAccount",
   validateAuthIdToken,
-  deleteAccountController
+  deleteAccountController1
+  // deleteAccountController
 );
 userRoute.post("/forgetPass", forgetPassController);
 userRoute.get(

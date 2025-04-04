@@ -7,6 +7,7 @@ import {
   adminSessionController,
   adminLogoutController,
   adminUserRegisterController,
+  getadminUserController,
 } from "../../controllers/admin/auth.controller";
 
 const adminAuthtRoute: Router = express.Router();
@@ -14,6 +15,7 @@ const adminAuthtRoute: Router = express.Router();
 adminAuthtRoute.post("/login", adminLoginController);
 adminAuthtRoute.post("/register", adminRegisterController);
 adminAuthtRoute.post("/userRegister", adminUserRegisterController);
+adminAuthtRoute.post("/getUser", getadminUserController);
 adminAuthtRoute.post(
   "/session",
   validateAuthIdToken,

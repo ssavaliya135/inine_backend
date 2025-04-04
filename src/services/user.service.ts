@@ -5,13 +5,29 @@ export const deleteUser = async (_id: string) => {
   await UserModel.findByIdAndDelete(_id);
 };
 
-export const getAllUser = async () => {
+export const getAllUser = async (
+  isHide: boolean,
+  page: number,
+  limit: number
+) => {
   const user = await UserModel.find({
     isRegistered: true,
     isDeleted: false,
     userType: { $ne: "ADMIN" },
-  }).select("firstName phoneNumber referrals email");
+    // isHide,
+  })
+    .select("firstName phoneNumber referrals email groupId")
+    .populate({ path: "groupId" })
+    .skip((page - 1) * limit)
+    .limit(limit);
   // return user ? user.map((item) => new User(item)) : null;
+  return user;
+};
+
+export const findUser = async (query) => {
+  const user = await UserModel.find(query)
+    .lean()
+    .populate({ path: "groupMembers" });
   return user;
 };
 
@@ -19,7 +35,7 @@ export const getNormalUser = async () => {
   const user = await UserModel.find({
     isRegistered: true,
     isDeleted: false,
-    userType: { $ne: "ADMIN" },
+    userType: { $in: ["ADMIN", "GROUP"] },
     $or: [{ isLeader: false }, { isLeader: { $exists: false } }],
   }).select("firstName phoneNumber referrals email");
   // return user ? user.map((item) => new User(item)) : null;

@@ -5,7 +5,16 @@ const admin = require("firebase-admin");
 const path = require("path");
 console.log(__dirname, "????????");
 console.log(process.cwd(), ">>>>>>>>");
+var cron = require("node-cron");
 
+// cron.schedule("0 0 * * *", async () => {
+//   let users = await findUser({ query: { isHide: true } });
+//   users.forEach(async (user) => {
+//     user.isHide = false;
+//     await updateUser(user);
+//   });
+//   console.log("running a task every minute");
+// });
 const firebaseConfigPath = path.join(
   process.cwd(),
   "credentials",
@@ -30,6 +39,7 @@ dotenv.config();
 import adminRoute from "./routes/admin.route";
 import authRoute from "./routes/auth.route";
 import userRoute from "./routes/user.route";
+import { findUser, updateUser } from "./services/user.service";
 
 const app = express();
 const port = process.env.PORT || 3001;

@@ -41,6 +41,7 @@ export interface IPortfolio extends Document {
   MDDRatio: number;
   riskReward: number;
   expectancy: number;
+  isDeleted: boolean;
 }
 
 const portfolio = new Schema<IPortfolio>(
@@ -171,6 +172,10 @@ const portfolio = new Schema<IPortfolio>(
     expectancy: {
       type: Number,
       default: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

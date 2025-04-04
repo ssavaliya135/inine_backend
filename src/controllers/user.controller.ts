@@ -7,12 +7,19 @@ import {
 } from "../helper/calculation";
 import { UserModel } from "../models/user.model";
 import { Request } from "../request";
-import { getAmountByUserId } from "../services/amount.service";
 import {
+  deleteAmount,
+  getAmountByUserId,
+  getAmountByUserIdAndMonth,
+} from "../services/amount.service";
+import {
+  deletePortfolio,
   getPortfolioByUserId,
   getPortfolioByUserIdAndMonth,
+  updatePortfolio,
 } from "../services/portfolio.service";
 import {
+  deleteUser,
   getPopulatedUserById,
   getPopulatedUserById1,
   getUserByEmail,
@@ -20,6 +27,7 @@ import {
   updateUser,
 } from "../services/user.service";
 import { sendMail } from "../helper/sendMail";
+import { updatePNLCalculation1 } from "./admin/user.controller";
 const moment = require("moment");
 
 export const profileUpdateSchema = Joi.object().keys({
@@ -136,15 +144,237 @@ export const deleteAccountController = async (req: Request, res: Response) => {
     if (!authUser) {
       return res.status(403).json("unauthorized request");
     }
-    const user = await getPopulatedUserById(authUser._id);
+    let userId = req.query.userId.toString();
+    let user;
+    if (userId) {
+      user = await getPopulatedUserById(userId);
+    } else {
+      user = await getPopulatedUserById(authUser._id);
+    }
     user.isRegistered = false;
     user.isDeleted = true;
+    let leaderUser = await getUserById(user.groupId);
+    if (leaderUser) {
+      let groupMember = leaderUser.groupMembers.filter(
+        (member) => member.toString() != userId.toString()
+      );
+      leaderUser.groupMembers = groupMember;
+      await updateUser(new UserModel(leaderUser));
+    }
+    user.groupId = null;
+
     await updateUser(new UserModel(user));
+    let portfolioList = await getPortfolioByUserId(user.id);
+    portfolioList.forEach(async (portfolio) => {
+      portfolio.isDeleted = true;
+      await updatePortfolio(portfolio);
+    });
     return res.status(200).json(user);
   } catch (error) {
     console.log(
       "error",
       "error at deleteAccountController#################### ",
+      error
+    );
+    return res.status(500).json({
+      message: "Something happened wrong try again after sometime.",
+      error: error,
+    });
+  }
+};
+
+const deleteData = async (user) => {
+  console.log(user, "suruuuuuuuuuuuuuuuuuu");
+
+  let amountList = await getAmountByUserId(user);
+  amountList.forEach(async (amount) => {
+    console.log(amount, ">>>>>>>>>>>>>>>>>>");
+
+    await deleteAmount(amount._id);
+  });
+  let portfolioList = await getPortfolioByUserId(user);
+  portfolioList.forEach(async (portfolio) => {
+    console.log(portfolio, "#########@@@@@@@@@@@@@@@@-------------");
+
+    await deletePortfolio(portfolio._id);
+    portfolio.isDeleted = true;
+    // await updatePortfolio(portfolio);
+  });
+  await deleteUser(user);
+};
+
+export const deleteAccountController1 = async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser;
+    if (!authUser) {
+      return res.status(403).json("unauthorized request");
+    }
+    let userId = req.query.userId.toString();
+    let user;
+    if (userId) {
+      user = await getPopulatedUserById(userId);
+      console.log(user, "#########");
+      if (user.userType == "USER") {
+        let groupLeader = await getPopulatedUserById(user.groupId);
+        if (groupLeader) {
+          let members = groupLeader.groupMembers.filter(
+            (groupMember) => groupMember.toString() != user._id.toString()
+          );
+          groupLeader.groupMembers = members;
+          console.log(groupLeader.groupMembers, "????????????//");
+
+          await updateUser(groupLeader);
+        }
+        user.groupMembers.forEach(async (user) => {
+          await deleteData(user);
+        });
+        await deleteData(user);
+      }
+
+      // let portfolioList = await getPortfolioByUserId(user.id);
+      // let amountList = await getAmountByUserId(user.id);
+      // amountList.forEach(async (amount) => {
+      //   await deleteAmount(amount._id);
+      // });
+      // portfolioList.forEach(async (portfolio) => {
+      //   await deletePortfolio(portfolio._id);
+      //   portfolio.isDeleted = true;
+      //   // await updatePortfolio(portfolio);
+      // });
+    } else {
+      let payloadValue;
+      user = await getPopulatedUserById(authUser._id);
+      let groupLeader = await getPopulatedUserById(user.groupId);
+      if (groupLeader) {
+        let members = groupLeader.groupMembers.filter(
+          (groupMember) => groupMember.toString() != user._id.toString()
+        );
+        groupLeader.groupMembers = members;
+        console.log(groupLeader.groupMembers, "????????????//");
+
+        await updateUser(groupLeader);
+        let { month } = calculateMonth(new Date());
+        let amount = await getAmountByUserIdAndMonth(user._id, month);
+        let grouPortfolio = await getPortfolioByUserIdAndMonth(
+          user.groupId,
+          month
+        );
+        payloadValue.pnlList = grouPortfolio.pnlList;
+        payloadValue.groupPnlList = grouPortfolio.pnlList;
+        payloadValue.pnl = grouPortfolio.totalPnlValue;
+        grouPortfolio.pnlList = [];
+        grouPortfolio.totalCapital = grouPortfolio.totalCapital - amount.amount;
+        grouPortfolio.tax = 0;
+        grouPortfolio.totalPnlValue = 0;
+        grouPortfolio.totalROI = 0;
+        grouPortfolio.winDays = 0;
+        grouPortfolio.winRation = 0;
+        grouPortfolio.avgProfit = 0;
+        grouPortfolio.totalWinProfit = 0;
+        grouPortfolio.maxProfit = 0;
+        grouPortfolio.todayPNL = 0;
+        grouPortfolio.currentWeekPNL = 0;
+        grouPortfolio.currentMonthPNL = 0;
+        grouPortfolio.currentDD = 0;
+        grouPortfolio.lossDays = 0;
+        grouPortfolio.lossRation = 0;
+        grouPortfolio.avgLoss = 0;
+        grouPortfolio.totalLoss = 0;
+        grouPortfolio.maxLoss = 0;
+        grouPortfolio.maxWinStreak = 0;
+        grouPortfolio.maxLossStreak = 0;
+        grouPortfolio.MDD = 0;
+        grouPortfolio.MDDRatio = 0;
+        grouPortfolio.riskReward = 0;
+        grouPortfolio.expectancy = 0;
+        let data = await updatePNLCalculation1(
+          payloadValue,
+          grouPortfolio,
+          grouPortfolio.totalCapital
+        );
+        for (let user of groupLeader.groupMembers) {
+          let userPortfolio = await getPortfolioByUserIdAndMonth(
+            user._id.toString(),
+            month
+          );
+          if (!userPortfolio) {
+            return res
+              .status(410)
+              .json({ message: "You have to add deposit first" });
+          }
+          payloadValue.pnlList = userPortfolio.pnlList;
+          // payloadValue.pnl = grouPortfolio.totalPnlValue;
+          userPortfolio.pnlList = [];
+          userPortfolio.totalCapital =
+            userId == user._id.toString()
+              ? payloadValue.amount
+              : userPortfolio.totalCapital;
+          userPortfolio.tax = 0;
+          userPortfolio.totalPnlValue = 0;
+          userPortfolio.totalROI = 0;
+          userPortfolio.winDays = 0;
+          userPortfolio.winRation = 0;
+          userPortfolio.avgProfit = 0;
+          userPortfolio.totalWinProfit = 0;
+          userPortfolio.maxProfit = 0;
+          userPortfolio.todayPNL = 0;
+          userPortfolio.currentWeekPNL = 0;
+          userPortfolio.currentMonthPNL = 0;
+          userPortfolio.currentDD = 0;
+          userPortfolio.lossDays = 0;
+          userPortfolio.lossRation = 0;
+          userPortfolio.avgLoss = 0;
+          userPortfolio.totalLoss = 0;
+          userPortfolio.maxLoss = 0;
+          userPortfolio.maxWinStreak = 0;
+          userPortfolio.maxLossStreak = 0;
+          userPortfolio.MDD = 0;
+          userPortfolio.MDDRatio = 0;
+          userPortfolio.riskReward = 0;
+          userPortfolio.expectancy = 0;
+          data = await updatePNLCalculation1(
+            payloadValue,
+            userPortfolio,
+            grouPortfolio.totalCapital
+          );
+        }
+        await deleteData(user);
+      }
+
+      // let portfolioList = await getPortfolioByUserId(user.id);
+      // portfolioList.forEach(async (portfolio) => {
+      //   await deletePortfolio(portfolio._id);
+      //   // portfolio.isDeleted = true;
+      //   // await updatePortfolio(portfolio);
+      // });
+      // let amountList = await getAmountByUserId(user.id);
+      // amountList.forEach(async (amount) => {
+      //   await deleteAmount(amount._id);
+      // });
+    }
+    // user.isRegistered = false;
+    // user.isDeleted = true;
+    // let leaderUser = await getUserById(user.groupId);
+    // if (leaderUser) {
+    //   let groupMember = leaderUser.groupMembers.filter(
+    //     (member) => member.toString() != userId.toString()
+    //   );
+    //   leaderUser.groupMembers = groupMember;
+    //   await updateUser(new UserModel(leaderUser));
+    // }
+    // user.groupId = null;
+
+    // await updateUser(new UserModel(user));
+    // let portfolioList = await getPortfolioByUserId(user.id);
+    // portfolioList.forEach(async (portfolio) => {
+    //   portfolio.isDeleted = true;
+    //   await updatePortfolio(portfolio);
+    // });
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log(
+      "error",
+      "error at deleteAccountController1#################### ",
       error
     );
     return res.status(500).json({
@@ -212,6 +442,10 @@ export const getPortfolioController = async (req: Request, res: Response) => {
       user._id,
       payloadValue.month
     );
+    console.log(user._id, payloadValue.month, ":::::::::::::::::");
+
+    console.log(portfolio, "portfolioooooooo");
+
     if (!portfolio) {
       return res.status(404).json({ message: "Portfolio not found" });
     }

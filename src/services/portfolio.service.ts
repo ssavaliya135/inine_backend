@@ -8,6 +8,12 @@ export const getAllPortfolio = async () => {
   const portfolio = await PortfolioModel.find();
   return portfolio ? portfolio.map((item) => new PortfolioModel(item)) : null;
 };
+export const findPortfolio = async (query) => {
+  const portfolio = await PortfolioModel.find(query)
+    .lean()
+    .populate({ path: "userId" });
+  return portfolio;
+};
 
 export const getPortfolioById = async (_id: string) => {
   const portfolio = await PortfolioModel.findById(_id).lean();
@@ -25,10 +31,10 @@ export const getPortfolioByUserIdAndMonth = async (
       .replace(/([.*+?^${}()|[\]\\])/g, "\\$1")}$`,
     "i"
   );
-
   const portfolio = await PortfolioModel.findOne({
     userId,
-    month: { $regex: regexMonth },
+    month,
+    // month: { $regex: regexMonth },
   });
 
   return portfolio ? portfolio : null;
@@ -51,7 +57,7 @@ export const getPortfolioByUserId = async (userId: string) => {
   })
     .lean()
     .sort({ createdAt: -1 })
-    .select("month totalCapital totalROI");
+    .select("month totalCapital totalROI tax pnlList totalPnlValue");
   return portfolio ? portfolio : [];
 };
 
@@ -60,7 +66,8 @@ export const getLastPortfolioByUserId = async (userId: string) => {
     userId,
   })
     .lean()
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .populate({ path: "userId", select: "firstName phoneNumber email isHide" });
   // .select("month totalCapital totalROI");
   return portfolio ? portfolio : [];
 };
