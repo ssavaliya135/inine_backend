@@ -14,7 +14,7 @@ export const getAllUser = async (
     isRegistered: true,
     isDeleted: false,
     userType: { $ne: "ADMIN" },
-    // isHide,
+    isHide,
   })
     .select("firstName phoneNumber referrals email groupId")
     .populate({ path: "groupId" })

@@ -27,6 +27,9 @@ import {
   getHideUserController1,
   updateUserAdminController,
   deleteMonthlyHistoryController,
+  removeUserController,
+  getUserNotInGroupController,
+  addUserController,
 } from "../../controllers/admin/user.controller";
 
 const adminUserRoute: Router = express.Router();
@@ -61,6 +64,9 @@ adminUserRoute.get("/getUser", getUserController);
 adminUserRoute.get("/getHideUser1", getHideUserController1);
 adminUserRoute.get("/getHideUser", getHideUserController);
 adminUserRoute.post("/hideUnhideUser", hideUnhideUserController);
+adminUserRoute.get("/removeUser", removeUserController);
+adminUserRoute.get("/addUser", addUserController);
+adminUserRoute.get("/getUserNotInGroup", getUserNotInGroupController);
 adminUserRoute.post("/editAmountAdmin/:userId", editAmountAdminController);
 adminUserRoute.get(
   "/getLifeTimeGroupPortfolio/:userId",

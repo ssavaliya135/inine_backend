@@ -40,6 +40,26 @@ export const getPortfolioByUserIdAndMonth = async (
   return portfolio ? portfolio : null;
 };
 
+export const getPortfolioByUserIdAndMonth1 = async (
+  userId: string,
+  month: string
+) => {
+  const regexMonth = new RegExp(
+    `^${month
+      .trim()
+      .replace(/\s+/g, "\\s*")
+      .replace(/([.*+?^${}()|[\]\\])/g, "\\$1")}$`,
+    "i"
+  );
+  const portfolio = await PortfolioModel.findOne({
+    userId,
+    month,
+    // month: { $regex: regexMonth },
+  }).populate({ path: "userId", select: "firstName phoneNumber email" });
+
+  return portfolio ? portfolio : null;
+};
+
 // export const getPortfolioByUserIdAndMonth = async (
 //   userId: string,
 //   month: string

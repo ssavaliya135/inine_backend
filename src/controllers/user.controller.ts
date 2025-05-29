@@ -290,7 +290,8 @@ export const deleteAccountController1 = async (req: Request, res: Response) => {
         let data = await updatePNLCalculation1(
           payloadValue,
           grouPortfolio,
-          grouPortfolio.totalCapital
+          grouPortfolio.totalCapital,
+          null
         );
         for (let user of groupLeader.groupMembers) {
           let userPortfolio = await getPortfolioByUserIdAndMonth(
@@ -335,7 +336,8 @@ export const deleteAccountController1 = async (req: Request, res: Response) => {
           data = await updatePNLCalculation1(
             payloadValue,
             userPortfolio,
-            grouPortfolio.totalCapital
+            grouPortfolio.totalCapital,
+            null
           );
         }
         await deleteData(user);
@@ -352,6 +354,8 @@ export const deleteAccountController1 = async (req: Request, res: Response) => {
       //   await deleteAmount(amount._id);
       // });
     }
+    user.isDeleted = true;
+    await updateUser(new UserModel(user));
     // user.isRegistered = false;
     // user.isDeleted = true;
     // let leaderUser = await getUserById(user.groupId);
